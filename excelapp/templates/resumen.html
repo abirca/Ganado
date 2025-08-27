@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block content %}
+
+<div class="card shadow border my-4 p-4" style="max-width: 900px; margin: auto;">
+  <h3 class="card-title mb-4 text-center">Resumen de Proveedores</h3>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Proveedor</th>
+          <th>Facturas</th>
+          <th>Ahorros</th>
+          <th>Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in resumen %}
+          <tr>
+            <td>{{ row.0 }}</td>
+            <td>${{ row.1|floatformat:0|intcomma }}</td>
+            <td>${{ row.2|floatformat:0|intcomma }}</td>
+            <td class="{% if row.3 <= 0 %}text-success{% else %}text-danger{% endif %}"><strong>
+              ${{ row.3|floatformat:0|intcomma }}
+              </strong>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-center">Sin registros aún</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

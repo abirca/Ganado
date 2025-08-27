@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block content %}
+{% load form_tags %}
+{% load humanize %}
+
+<div class="card shadow border my-4 p-4">
+  <h3 class="card-title mb-4">Editar Movimiento</h3>
+
+  <form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-md-4">
+      {{ form.fecha.label_tag }}
+      {{ form.fecha|add_class:"form-control" }}
+    </div>
+    <div class="col-md-4">
+      {{ form.proveedor.label_tag }}
+      {{ form.proveedor|add_class:"form-control" }}
+    </div>
+    <div class="col-md-4">
+      {{ form.detalle.label_tag }}
+      {{ form.detalle|add_class:"form-select" }}
+    </div>
+    <div class="col-md-4">
+      {{ form.obs.label_tag }}
+      {{ form.obs|add_class:"form-control" }}
+    </div>
+    <div class="col-md-4">
+      {{ form.total.label_tag }}
+      <input type="text" name="total" id="id_total" class="form-control" value="{{ form.total.value|default_if_none:'' }}">
+    </div>
+    <div class="col-12 mt-3">
+      <button type="submit" class="btn btn-success me-2">Guardar Cambios</button>
+      <a href="{% url 'index' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const totalInput = document.getElementById('id_total');
+
+  function formatNumberToPesos(value) {
+    value = value.replace(/\D/g, ''); // eliminar todo excepto números
+    if (!value) return '';
+    return '$' + parseInt(value, 10).toLocaleString('es-CO');
+  }
+
+  function cleanPesos(value) {
+    return value.replace(/[^\d]/g, ''); // eliminar $ y puntos
+  }
+
+  totalInput.addEventListener('input', function () {
+    let rawValue = totalInput.value;
+    let cursorPos = totalInput.selectionStart;
+
+    const cleanedBefore = cleanPesos(rawValue.substring(0, cursorPos));
+    const isFirstChar = cleanedBefore.length === 1 && cleanPesos(rawValue).length === 1;
+
+    const cleaned = cleanPesos(rawValue);
+    const formatted = formatNumberToPesos(cleaned);
+
+    totalInput.value = formatted;
+
+    if (isFirstChar) {
+      totalInput.setSelectionRange(formatted.length, formatted.length);
+    } else {
+      const newCursorPos = formatted.length - (cleanPesos(formatted).length - cleanedBefore.length);
+      totalInput.setSelectionRange(newCursorPos, newCursorPos);
+    }
+  });
+
+  totalInput.form.addEventListener('submit', function () {
+    totalInput.value = cleanPesos(totalInput.value);
+  });
+});
+</script>
+
+{% endblock %}

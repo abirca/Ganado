@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard de Proveedores</h2>
+
+<div class="mb-4">
+  <label for="filtroProveedor" class="form-label">Filtrar por Proveedor:</label>
+  <select id="filtroProveedor" class="form-select" style="max-width: 300px;">
+    <option value="">-- Todos --</option>
+    {% for prov in proveedores %}
+      <option value="{{ prov }}" {% if prov == proveedor_filtrado %}selected{% endif %}>{{ prov }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<canvas id="facturasChart" style="max-height: 300px;"></canvas>
+<canvas id="ahorrosChart" style="max-height: 300px; margin-top: 30px;"></canvas>
+<canvas id="saldosChart" style="max-height: 300px; margin-top: 30px;"></canvas>
+<canvas id="lineaChart" style="max-height: 300px; margin-top: 30px;"></canvas>
+<canvas id="lineaFacturasChart" style="max-height: 300px; margin-top: 30px;"></canvas>
+<canvas id="lineaAhorrosChart" style="max-height: 300px; margin-top: 30px;"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const proveedores = {{ proveedores|safe }};
+  const facturas = {{ facturas|safe }};
+  const ahorros = {{ ahorros|safe }};
+  const saldos = {{ saldos|safe }};
+  const proveedoresFiltrados = {{ proveedores_filtrados|safe }};
+  const meses = {{ meses|safe }};
+  const facturasLinea = {{ facturas_linea|safe }};
+  const proveedorFiltrado = "{{ proveedor_filtrado }}";
+  const ahorrosLinea = {{ ahorros_linea|safe }};
+
+  // Graficos de barras
+  new Chart(document.getElementById('facturasChart'), {
+    type: 'bar',
+    data: {
+      labels: proveedores,
+      datasets: [{ label: 'Total Facturas', data: facturas, backgroundColor: '#4e73df' }]
+    }
+  });
+
+  new Chart(document.getElementById('ahorrosChart'), {
+    type: 'bar',
+    data: {
+      labels: proveedores,
+      datasets: [{ label: 'Total Ahorro', data: ahorros, backgroundColor: '#1cc88a' }]
+    }
+  });
+
+  new Chart(document.getElementById('saldosChart'), {
+    type: 'pie',
+    data: {
+      labels: proveedores,
+      datasets: [{
+        label: 'Saldo',
+        data: saldos,
+        backgroundColor: [
+          '#f6c23e', '#e74a3b', '#36b9cc', '#858796',
+          '#5a5c69', '#20c997', '#6610f2'
+        ]
+      }]
+    }
+  });
+
+  // Gráfico de línea evolución temporal
+  const ctxLinea = document.getElementById('lineaChart').getContext('2d');
+
+  // Filtrar datos para el proveedor seleccionado o todos
+  let datasetsLinea = [];
+  if (proveedorFiltrado && proveedorFiltrado !== '') {
+    const provData = facturasLinea.find(f => f.proveedor === proveedorFiltrado);
+    if (provData) {
+      datasetsLinea.push({
+        label: provData.proveedor,
+        data: provData.datos,
+        fill: false,
+        borderColor: '#3874ff',
+        tension: 0.1
+      });
+    }
+  } else {
+    // Mostrar todos los proveedores
+    const colores = ['#3874ff', '#20c997', '#f6c23e', '#e74a3b', '#36b9cc', '#858796', '#6610f2'];
+    facturasLinea.forEach((f, i) => {
+      datasetsLinea.push({
+        label: f.proveedor,
+        data: f.datos,
+        fill: false,
+        borderColor: colores[i % colores.length],
+        tension: 0.1
+      });
+    });
+  }
+
+  new Chart(ctxLinea, {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: datasetsLinea
+    },
+    options: {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      stacked: false,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Evolución de Facturas por Mes'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: value => '$' + value.toLocaleString()
+          }
+        }
+      }
+    }
+  });
+
+  function generarDatasetLinea(data, labelPrefix, colores) {
+    let datasets = [];
+    if (proveedorFiltrado && proveedorFiltrado !== '') {
+      const provData = data.find(f => f.proveedor === proveedorFiltrado);
+      if (provData) {
+        datasets.push({
+          label: labelPrefix + provData.proveedor,
+          data: provData.datos,
+          fill: false,
+          borderColor: colores[0],
+          tension: 0.1
+        });
+      }
+    } else {
+      data.forEach((f, i) => {
+        datasets.push({
+          label: labelPrefix + f.proveedor,
+          data: f.datos,
+          fill: false,
+          borderColor: colores[i % colores.length],
+          tension: 0.1
+        });
+      });
+    }
+    return datasets;
+  }
+
+  const coloresFacturas = ['#3874ff', '#20c997', '#f6c23e', '#e74a3b', '#36b9cc', '#858796', '#6610f2'];
+  const coloresAhorros = ['#1cc88a', '#ff6384', '#4bc0c0', '#ff9f40', '#9966ff', '#ffcd56', '#36a2eb'];
+
+  new Chart(document.getElementById('lineaFacturasChart'), {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: generarDatasetLinea(facturasLinea, 'Facturas - ', coloresFacturas)
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: { display: true, text: 'Evolución de Facturas por Mes' }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: value => '$' + value.toLocaleString() }
+        }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('lineaAhorrosChart'), {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: generarDatasetLinea(ahorrosLinea, 'Ahorros - ', coloresAhorros)
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: { display: true, text: 'Evolución de Ahorros por Mes' }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: value => '$' + value.toLocaleString() }
+        }
+      }
+    }
+  });
+
+  // Evento cambio filtro proveedor
+  document.getElementById('filtroProveedor').addEventListener('change', function() {
+    const prov = this.value;
+    const url = new URL(window.location.href);
+    if(prov) {
+      url.searchParams.set('proveedor', prov);
+    } else {
+      url.searchParams.delete('proveedor');
+    }
+    window.location.href = url.toString();
+  });
+
+</script>
+{% endblock %}
