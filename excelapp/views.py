@@ -18,6 +18,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.styles import NamedStyle
 
 RUTA_EXCEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Financiero.xlsx')
+RUTA_EXCEL_SEGUNDO = r'D:\OneDrive - Olimpia IT S.A.S\Descargas\Financiero.xlsx'
 
 # Configuración para tipos de entidad (Proveedores/Clientes)
 ENTITY_CONFIG = {
@@ -113,6 +114,7 @@ def guardar_en_excel(sheet_name, datos, encabezados=None, modo='overwrite'):
             ws.append(dato)
         
         wb.save(RUTA_EXCEL)
+        wb.save(RUTA_EXCEL_SEGUNDO)
         return True
     except Exception as e:
         print(f"Error al guardar en Excel: {e}")
