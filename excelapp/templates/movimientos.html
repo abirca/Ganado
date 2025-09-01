@@ -7,25 +7,48 @@
 
   <!-- Formulario de filtros -->
   <form method="get" class="row g-3 mb-4">
-    <div class="col-md-4">
-      <label for="filtroProveedor" class="form-label">Filtrar movimientos por proveedor:</label>
+    <div class="col-md-3">
+      <label for="filtroProveedor" class="form-label">Filtrar por proveedor:</label>
       <select id="filtroProveedor" name="proveedor" class="form-select">
         <option value="">-- Todos --</option>
         {% for row in resumen %}
-          {% with nombre=row.0 %}
+          {% with nombre=row.1 %}
             <option value="{{ nombre }}" {% if nombre == proveedor_filtrado %}selected{% endif %}>{{ nombre }}</option>
           {% endwith %}
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-4">
-      <label for="filtroFecha" class="form-label">Filtrar por fecha:</label>
+    <div class="col-md-2">
+      <label for="fechaInicio" class="form-label">Fecha inicio:</label>
+      <input type="date" name="fecha_inicio" id="fechaInicio" class="form-control" value="{{ fecha_inicio }}">
+    </div>
+    <div class="col-md-2">
+      <label for="fechaFin" class="form-label">Fecha fin:</label>
+      <input type="date" name="fecha_fin" id="fechaFin" class="form-control" value="{{ fecha_fin }}">
+    </div>
+    <div class="col-md-2">
+      <label for="filtroFecha" class="form-label">Fecha específica:</label>
       <input type="date" name="fecha" id="filtroFecha" class="form-control" value="{{ fecha_filtrada }}">
     </div>
-    <div class="col-md-4 d-flex align-items-end">
+    <div class="col-md-3 d-flex align-items-end gap-2">
       <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+      <a href="{% url 'descargar_excel_proveedor' %}?proveedor={{ proveedor_filtrado }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha_filtrada }}" 
+         class="btn btn-success w-100" download>
+        <i class="bi bi-download me-1"></i> Descargar Excel
+      </a>
     </div>
   </form>
+
+  <!-- Información de filtros aplicados -->
+  {% if proveedor_filtrado or fecha_filtrada or fecha_inicio or fecha_fin %}
+  <div class="alert alert-info mb-3">
+    <strong>Filtros aplicados:</strong>
+    {% if proveedor_filtrado %}Proveedor: {{ proveedor_filtrado }}{% endif %}
+    {% if fecha_filtrada %} | Fecha: {{ fecha_filtrada }}{% endif %}
+    {% if fecha_inicio %} | Desde: {{ fecha_inicio }}{% endif %}
+    {% if fecha_fin %} | Hasta: {{ fecha_fin }}{% endif %}
+  </div>
+  {% endif %}
 
   <!-- Tabla de movimientos -->
   <div class="table-responsive">
@@ -43,7 +66,7 @@
       <tbody>
         {% for mov in movimientos %}
           <tr>
-            <td>{{ mov.fecha|date:"d/m/Y" }}</td>
+            <td>{% if mov.fecha %}{{ mov.fecha|date:"d/m/Y" }}{% else %}Fecha no válida{% endif %}</td>
             <td>{{ mov.proveedor }}</td>
             <td>{{ mov.detalle }}</td>
             <td>{{ mov.obs }}</td>
@@ -53,7 +76,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="text-center">No hay movimientos aún</td></tr>
+          <tr><td colspan="6" class="text-center">No hay movimientos con los filtros aplicados</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -64,7 +87,7 @@
     <ul class="pagination justify-content-center">
       {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if proveedor_filtrado %}&proveedor={{ proveedor_filtrado }}{% endif %}{% if fecha_filtrada %}&fecha={{ fecha_filtrada }}{% endif %}" aria-label="Anterior">
+          <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if all_params %}&{{ all_params }}{% endif %}" aria-label="Anterior">
             <span aria-hidden="true">&laquo;</span>
           </a>
         </li>
@@ -77,14 +100,14 @@
           <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
         {% else %}
           <li class="page-item">
-            <a class="page-link" href="?page={{ num }}{% if proveedor_filtrado %}&proveedor={{ proveedor_filtrado }}{% endif %}{% if fecha_filtrada %}&fecha={{ fecha_filtrada }}{% endif %}">{{ num }}</a>
+            <a class="page-link" href="?page={{ num }}{% if all_params %}&{{ all_params }}{% endif %}">{{ num }}</a>
           </li>
         {% endif %}
       {% endfor %}
 
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if proveedor_filtrado %}&proveedor={{ proveedor_filtrado }}{% endif %}{% if fecha_filtrada %}&fecha={{ fecha_filtrada }}{% endif %}" aria-label="Siguiente">
+          <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if all_params %}&{{ all_params }}{% endif %}" aria-label="Siguiente">
             <span aria-hidden="true">&raquo;</span>
           </a>
         </li>
@@ -98,19 +121,62 @@
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     const filtroProveedor = document.getElementById("filtroProveedor");
+    const fechaInicio = document.getElementById("fechaInicio");
+    const fechaFin = document.getElementById("fechaFin");
     const filtroFecha = document.getElementById("filtroFecha");
 
-    filtroProveedor?.addEventListener("change", function() {
-      const proveedor = encodeURIComponent(filtroProveedor.value || '');
-      const fecha = encodeURIComponent(filtroFecha?.value || '');
-      let query = [];
-
-      if (proveedor) query.push(`proveedor=${proveedor}`);
-      if (fecha) query.push(`fecha=${fecha}`);
-
-      const baseUrl = window.location.origin + window.location.pathname;
-      window.location.href = query.length ? `${baseUrl}?${query.join('&')}` : baseUrl;
+    // Limpiar fecha específica cuando se usan rangos
+    fechaInicio.addEventListener("change", function() {
+      if (this.value) {
+        filtroFecha.value = "";
+      }
     });
+    
+    fechaFin.addEventListener("change", function() {
+      if (this.value) {
+        filtroFecha.value = "";
+      }
+    });
+    
+    // Limpiar rangos cuando se usa fecha específica
+    filtroFecha.addEventListener("change", function() {
+      if (this.value) {
+        fechaInicio.value = "";
+        fechaFin.value = "";
+      }
+    });
+
+    // Actualizar enlace de descarga cuando cambian los filtros
+    function actualizarEnlaceDescarga() {
+      const proveedor = encodeURIComponent(filtroProveedor.value || '');
+      const fechaInicioVal = encodeURIComponent(fechaInicio?.value || '');
+      const fechaFinVal = encodeURIComponent(fechaFin?.value || '');
+      const fechaVal = encodeURIComponent(filtroFecha?.value || '');
+      
+      const enlaceDescarga = document.querySelector('a[download]');
+      if (enlaceDescarga) {
+        let url = enlaceDescarga.href.split('?')[0];
+        let params = [];
+        
+        if (proveedor) params.push(`proveedor=${proveedor}`);
+        if (fechaInicioVal) params.push(`fecha_inicio=${fechaInicioVal}`);
+        if (fechaFinVal) params.push(`fecha_fin=${fechaFinVal}`);
+        if (fechaVal) params.push(`fecha=${fechaVal}`);
+        
+        enlaceDescarga.href = params.length ? `${url}?${params.join('&')}` : url;
+      }
+    }
+
+    // Agregar event listeners para actualizar el enlace de descarga
+    [filtroProveedor, fechaInicio, fechaFin, filtroFecha].forEach(element => {
+      if (element) {
+        element.addEventListener("change", actualizarEnlaceDescarga);
+        element.addEventListener("input", actualizarEnlaceDescarga);
+      }
+    });
+
+    // Inicializar el enlace de descarga
+    actualizarEnlaceDescarga();
   });
 </script>
 

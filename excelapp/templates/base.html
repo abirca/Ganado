@@ -1,23 +1,46 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Ganado</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Aplicación</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+      /* Ajustes personalizados */
+      @media (max-width: 768px) {
+          .movimiento {
+              font-size: 14px;
+              padding: 10px;
+          }
+      }
+      /* Toasts container */
+      #toast-container {
+          position: fixed;
+          top: 70px;
+          right: 20px;
+          z-index: 3000;
+      }
+  </style>
 </head>
 <body>
+  <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark" data-bs-theme="dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="{% url 'index' %}">Inicio</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
-        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+              data-bs-target="#navbarSupportedContent"
+              aria-controls="navbarSupportedContent" aria-expanded="false" 
+              aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
   
       <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <!-- Proveedores -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" 
+               data-bs-toggle="dropdown" aria-expanded="false">
               Proveedor
             </a>
             <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
@@ -25,14 +48,16 @@
               <li><a class="dropdown-item" href="{% url 'agregar_persona' %}">Agregar Persona</a></li>
               <li><a class="dropdown-item" href="{% url 'resumen' %}">Ver Resumen</a></li>
               <li><a class="dropdown-item" href="{% url 'movimientos' %}">Ver Movimientos</a></li>
-              <li><a class="dropdown-item" href="{% url 'dashboardCliente' %}">Dashboard</a></li>
+              <li><a class="dropdown-item" href="{% url 'index' %}">Dashboard</a></li>
             </ul>
           </li>
+          <!-- Clientes -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkCliente" role="button" 
+               data-bs-toggle="dropdown" aria-expanded="false">
               Clientes
             </a>
-            <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLinkCliente">
               <li><a class="dropdown-item" href="{% url 'MovimientoCliente' %}">Agregar movimiento</a></li>
               <li><a class="dropdown-item" href="{% url 'agregar_persona_Cliente' %}">Agregar Persona</a></li>
               <li><a class="dropdown-item" href="{% url 'resumenCliente' %}">Ver Resumen</a></li>
@@ -42,19 +67,109 @@
           </li>
         </ul>
         
+        <!-- Buscador -->
         <form class="d-flex" role="search" method="GET" action="{% url 'resumen' %}">
-          <input class="form-control me-2" type="search" name="proveedor" placeholder="Buscar proveedor" aria-label="Buscar proveedor" value="{{ proveedor_filtrado|default:'' }}">
+          <input class="form-control me-2" type="search" name="proveedor" 
+                 placeholder="Buscar proveedor" aria-label="Buscar proveedor" 
+                 value="{{ proveedor_filtrado|default:'' }}">
           <button class="btn btn-outline-success" type="submit">Buscar</button>
         </form>
       </div>
     </div>
   </nav>
-  
 
-<div class="container mt-4">
-  {% block content %}{% endblock %}
-</div>
+  <!-- Progress bar -->
+  <div id="globalProgress" class="progress fixed-top" style="height: 5px; display:none; z-index: 2000;">
+    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+         role="progressbar" style="width: 0%"></div>
+  </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Toasts (mensajes Django) -->
+  <div id="toast-container">
+    {% if messages %}
+      {% for message in messages %}
+      <div class="toast align-items-center text-bg-{{ message.tags }} border-0 mb-2" role="alert"
+           aria-live="assertive" aria-atomic="true" data-bs-delay="4000">
+        <div class="d-flex">
+          <div class="toast-body">
+            {{ message }}
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" 
+                  data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- Contenido -->
+  <div class="container mt-4">
+    {% block content %}{% endblock %}
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Progress bar y Toasts scripts -->
+  <script>
+    // ---- PROGRESS BAR ----
+    function startProgress() {
+      const progressContainer = document.getElementById('globalProgress');
+      const progressBar = document.getElementById('progressBar');
+
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      let width = 0;
+      const interval = setInterval(() => {
+        if (width >= 90) {
+          clearInterval(interval);
+        } else {
+          width += 10;
+          progressBar.style.width = width + '%';
+        }
+      }, 200);
+
+      return interval;
+    }
+
+    function endProgress(interval) {
+      const progressBar = document.getElementById('progressBar');
+      progressBar.style.width = '100%';
+      setTimeout(() => {
+        document.getElementById('globalProgress').style.display = 'none';
+        clearInterval(interval);
+      }, 300);
+    }
+
+    // Para formularios
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("form").forEach(form => {
+        form.addEventListener("submit", () => {
+          let interval = startProgress();
+          window.addEventListener("load", () => endProgress(interval));
+        });
+      });
+    });
+
+    // Para navegación con links
+    document.querySelectorAll("a").forEach(link => {
+      if (link.getAttribute("target") !== "_blank" && link.getAttribute("href") !== "#") {
+        link.addEventListener("click", () => {
+          let interval = startProgress();
+          window.addEventListener("load", () => endProgress(interval));
+        });
+      }
+    });
+
+    // ---- TOASTS ----
+    document.addEventListener("DOMContentLoaded", () => {
+      const toastElList = [].slice.call(document.querySelectorAll('.toast'));
+      toastElList.map(function (toastEl) {
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+      });
+    });
+  </script>
 </body>
 </html>

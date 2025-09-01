@@ -4,7 +4,14 @@
 {% block content %}
 
 <div class="card shadow border my-4 p-4" style="max-width: 500px; margin: auto;">
-  <h3 class="card-title mb-4 text-center">Agregar Proveedor</h3>
+  <h3 class="card-title mb-4 text-center">
+    {% if es_edicion %}Editar{% else %}Agregar{% endif %} 
+    {% if request.path|slice:":15" == "/agregar_cliente" or request.path|slice:":13" == "/editar_cliente" %}
+      Cliente
+    {% else %}
+      Proveedor
+    {% endif %}
+  </h3>
 
   <form method="post" class="mb-3">
     {% csrf_token %}
@@ -19,8 +26,12 @@
     </div>
 
     <div class="d-flex justify-content-center">
-      <button type="submit" class="btn btn-primary">Agregar</button>
-      <a href="{% url 'resumen' %}" class="btn btn-secondary ms-2">Cancelar</a>
+      <button type="submit" class="btn btn-primary">
+        {% if es_edicion %}Actualizar{% else %}Agregar{% endif %}
+      </button>
+      <a href="{% if request.path|slice:":15" == "/agregar_persona_Cliente" or request.path|slice:":13" == "/editar_cliente" %}{% url 'resumenCliente' %}{% else %}{% url 'resumen' %}{% endif %}" class="btn btn-secondary ms-2">
+        Cancelar
+      </a>
     </div>
   </form>
 </div>

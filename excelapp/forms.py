@@ -13,7 +13,7 @@ class MovimientoForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date'}),
         required=True
     )
-    proveedor = forms.ChoiceField(choices=[], label='Proveedor')
+    proveedor = forms.CharField(max_length=255, label='Proveedor')  # Changed to ChoiceField
     detalle = forms.ChoiceField(choices=DETALLE_CHOICES, label='Detalle')
     obs = forms.CharField(required=False, label='Observación')
     total = forms.DecimalField(
@@ -55,7 +55,7 @@ class MovimientoClienteForm(forms.Form):
         widget=forms.DateInput(attrs={'type': 'date'}),
         required=True
     )
-    proveedor = forms.ChoiceField(choices=[], label='Proveedor')
+    proveedor = forms.CharField(max_length=255, label='Proveedor')  # Changed to ChoiceField
     detalle = forms.ChoiceField(choices=DETALLE_CHOICES, label='Detalle')
     obs = forms.CharField(required=False, label='Observación')
     total = forms.DecimalField(
@@ -87,7 +87,6 @@ class MovimientoClienteForm(forms.Form):
         self.fields['proveedor'].widget.attrs.update({'class': 'form-control'})
         self.fields['detalle'].widget.attrs.update({'class': 'form-select'})
         self.fields['obs'].widget.attrs.update({'class': 'form-control'})
-
 
 def clean_total(self):
     total_raw = self.cleaned_data['total']

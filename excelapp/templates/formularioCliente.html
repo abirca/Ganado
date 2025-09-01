@@ -11,7 +11,7 @@
       <select name="proveedor" id="filtroProveedor" class="form-select">
         <option value="">-- Todos --</option>
         {% for row in resumen %}
-          {% with nombre=row.0 %}
+          {% with nombre=row.1 %}
             <option value="{{ nombre }}" {% if nombre == proveedor_filtrado %}selected{% endif %}>{{ nombre }}</option>
           {% endwith %}
         {% endfor %}
@@ -60,11 +60,11 @@
           <tbody>
             {% for row in resumen_Filtrado %}
               <tr>
-                <td>{{ row.0 }}</td>
-                <td>${{ row.1|floatformat:0|intcomma }}</td>
+                <td>{{ row.1 }}</td>
                 <td>${{ row.2|floatformat:0|intcomma }}</td>
-                <td class="{% if row.3 <= 0 %}text-success{% else %}text-danger{% endif %}">
-                  <strong>${{ row.3|floatformat:0|intcomma }}</strong>
+                <td>${{ row.3|floatformat:0|intcomma }}</td>
+                <td class="{% if row.4 <= 0 %}text-success{% else %}text-danger{% endif %}">
+                  <strong>${{ row.4|floatformat:0|intcomma }}</strong>
                 </td>
               </tr>
             {% empty %}

@@ -13,17 +13,21 @@
           <th>Facturas</th>
           <th>Ahorros</th>
           <th>Saldo</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for row in resumen %}
           <tr>
-            <td>{{ row.0 }}</td>
-            <td>${{ row.1|floatformat:0|intcomma }}</td>
+            <td>{{ row.1 }}</td>
             <td>${{ row.2|floatformat:0|intcomma }}</td>
-            <td class="{% if row.3 <= 0 %}text-success{% else %}text-danger{% endif %}"><strong>
-              ${{ row.3|floatformat:0|intcomma }}
+            <td>${{ row.3|floatformat:0|intcomma }}</td>
+            <td class="{% if row.4 <= 0 %}text-success{% else %}text-danger{% endif %}"><strong>
+              ${{ row.4|floatformat:0|intcomma }}
               </strong>
+            </td>
+            <td>
+              <a href="{% url 'editar_proveedor' row.0 %}" class="btn btn-sm btn-warning">Editar</a>
             </td>
           </tr>
         {% empty %}
