@@ -4,9 +4,11 @@ from openpyxl import load_workbook
 from django.conf import settings
 from decimal import Decimal
 
+ruta_excel = settings.RUTA_EXCEL
+
 class MovimientoForm(forms.Form):
     DETALLE_CHOICES = (
-        ('Ahorro', 'Ahorro'),
+        ('Abono', 'Abono'),
         ('Factura', 'Factura'),
     )
     fecha = forms.DateField(
@@ -30,7 +32,7 @@ class MovimientoForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        ruta_excel = os.path.join(settings.BASE_DIR, 'Financiero.xlsx')
+        
         choices = []
         if os.path.exists(ruta_excel):
             wb = load_workbook(ruta_excel)
@@ -48,7 +50,7 @@ class MovimientoForm(forms.Form):
 
 class MovimientoClienteForm(forms.Form):
     DETALLE_CHOICES = (
-        ('Ahorro', 'Ahorro'),
+        ('Abono', 'Abono'),
         ('Factura', 'Factura'),
     )
     fecha = forms.DateField(
@@ -72,7 +74,6 @@ class MovimientoClienteForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        ruta_excel = os.path.join(settings.BASE_DIR, 'Financiero.xlsx')
         choices = []
         if os.path.exists(ruta_excel):
             wb = load_workbook(ruta_excel)

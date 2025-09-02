@@ -9,6 +9,7 @@ urlpatterns = [
     path('resumen/', views.resumen, name='resumen'),
     path('editar/<int:index>/', views.editar_movimiento, name='editar_movimiento'),
     path('movimientos/', views.movimientos, name='movimientos'),
+    path('dashboard/', views.dashboardProveedor, name='dashboardProveedor'),
     path('agregar_persona/', views.agregar_persona, name='agregar_persona'),
     #Cliente
     path('MovimientoCliente/', views.MovimientoCliente, name='MovimientoCliente'),

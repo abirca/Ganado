@@ -1,5 +1,6 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import defaultdict 
 import openpyxl
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404, Http404
@@ -16,9 +17,10 @@ from django.http import HttpResponse
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import NamedStyle
+from django.conf import settings
 
-RUTA_EXCEL = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Financiero.xlsx')
-RUTA_EXCEL_SEGUNDO = r'D:\OneDrive - Olimpia IT S.A.S\Descargas\Financiero.xlsx'
+RUTA_EXCEL = settings.RUTA_EXCEL
+RUTA_EXCEL_SEGUNDO =  settings.RUTA_EXCEL_SEGUNDO
 
 # Configuración para tipos de entidad (Proveedores/Clientes)
 ENTITY_CONFIG = {
@@ -209,35 +211,35 @@ def recalcular_resumen(entity_type):
         if len(mov) < 6:
             continue
             
-        id, fecha, proveedor, detalle, obs, total = mov
+        _, fecha, proveedor, detalle, obs, total = mov
         
         if proveedor not in resumen_dict:
             resumen_dict[proveedor] = {
                 'facturas': Decimal('0'),
-                'ahorros': Decimal('0'),
+                'abonos': Decimal('0'),
                 'saldo': Decimal('0')
             }
         
         if detalle == 'Factura':
             resumen_dict[proveedor]['facturas'] += Decimal(str(total))
-        elif detalle == 'Ahorro':
-            resumen_dict[proveedor]['ahorros'] += Decimal(str(total))
+        elif detalle == 'Abono':
+            resumen_dict[proveedor]['abonos'] += Decimal(str(total))
         
-        resumen_dict[proveedor]['saldo'] = resumen_dict[proveedor]['facturas'] - resumen_dict[proveedor]['ahorros']
+        resumen_dict[proveedor]['saldo'] = resumen_dict[proveedor]['facturas'] - resumen_dict[proveedor]['abonos']
     
     # Preparar datos para guardar
     resumen_data = []
-    for proveedor, valores in resumen_dict.items():
+    for idx, (proveedor, valores) in enumerate(resumen_dict.items(), start=1):
         resumen_data.append([
-            obtener_ultimo_id(config['sheet_resumen']) + 1,  # Nuevo ID
+            idx,  # ID incremental automático
             proveedor,
             float(valores['facturas']),
-            float(valores['ahorros']),
+            float(valores['abonos']),
             float(valores['saldo'])
         ])
     
     # Guardar en Excel
-    encabezados = ['Id', 'Proveedor', 'Total Facturas', 'Total Ahorro', 'Saldo']
+    encabezados = ['Id', 'Proveedor', 'Total Facturas', 'Total Abonos', 'Saldo']
     guardar_en_excel(config['sheet_resumen'], resumen_data, encabezados, modo='overwrite')
     
     return True
@@ -425,7 +427,7 @@ def agregar_persona_view(request, entity_type):
                 resumen_data.append(nueva_fila)
                 
                 # Guardar en Excel
-                encabezados = ['Id', 'Proveedor', 'Total Facturas', 'Total Ahorro', 'Saldo']
+                encabezados = ['Id', 'Proveedor', 'Total Facturas', 'Total Abonos', 'Saldo']
                 if guardar_en_excel(config['sheet_resumen'], resumen_data, encabezados, modo='overwrite'):
                     messages.success(request, f'Persona {nombre} agregada correctamente. ✔️')
                     return redirect(config['url_resumen'])
@@ -442,14 +444,39 @@ def dashboard_view(request, entity_type):
     """Vista genérica para dashboard de proveedores o clientes"""
     config = ENTITY_CONFIG[entity_type]
     
+    # Obtener parámetros de filtro
     proveedor_filtrado = request.GET.get('proveedor', None)
+    fecha_inicio_str = request.GET.get('fecha_inicio', '')
+    fecha_fin_str = request.GET.get('fecha_fin', '')
+    
+    # Convertir fechas si se proporcionaron
+    fecha_inicio = None
+    fecha_fin = None
+    
+    if fecha_inicio_str:
+        try:
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d')
+        except ValueError:
+            pass
+    
+    if fecha_fin_str:
+        try:
+            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d')
+        except ValueError:
+            pass
+    
     proveedores = []
     facturas_totales = []
-    ahorros_totales = []
+    abonos_totales = []
     saldos_totales = []
     
     facturas_por_mes = {}
-    ahorros_por_mes = {}
+    abonos_por_mes = {}
+    
+    # Nuevos datos para las gráficas KPI
+    total_facturado = 0
+    total_abonado = 0
+    porcentaje_abono = 0
     
     # Cargar datos de resumen
     resumen_data = cargar_datos_excel(config['sheet_resumen'])
@@ -457,12 +484,24 @@ def dashboard_view(request, entity_type):
         if len(row) < 5:
             continue
             
-        id, proveedor, factura, ahorro, saldo = row[0], row[1], row[2] or 0, row[3] or 0, row[4] or 0
+        id, proveedor, factura, abonos, saldo = row[0], row[1], row[2] or 0, row[3] or 0, row[4] or 0
         
+        # Filtrar por proveedor si se especificó
+        if proveedor_filtrado and proveedor != proveedor_filtrado:
+            continue
+            
         proveedores.append(proveedor)
         facturas_totales.append(factura)
-        ahorros_totales.append(ahorro)
+        abonos_totales.append(abonos)
         saldos_totales.append(saldo)
+        
+        # Calcular totales para KPI
+        total_facturado += factura
+        total_abonado += abonos
+    
+    # Calcular porcentaje de abono
+    if total_facturado > 0:
+        porcentaje_abono = (total_abonado / total_facturado) * 100
     
     # Cargar datos de movimientos
     movimientos_data = cargar_datos_excel(config['sheet_movimientos'])
@@ -470,69 +509,100 @@ def dashboard_view(request, entity_type):
         if len(row) < 6:
             continue
             
-        id_, fecha, prov, detalle, obs, total = row
+        id_, fecha_str, prov, detalle, obs, total = row
         
+        # Filtrar por proveedor si se especificó
         if proveedor_filtrado and prov != proveedor_filtrado:
             continue
         
-        if not fecha:
+        # Convertir fecha y filtrar por rango de fechas
+        fecha = None
+        if fecha_str:
+            if isinstance(fecha_str, datetime):
+                fecha = fecha_str
+            else:
+                try:
+                    fecha = datetime.strptime(str(fecha_str), '%Y-%m-%d')
+                except:
+                    try:
+                        fecha = datetime.strptime(str(fecha_str), '%d/%m/%Y')
+                    except:
+                        continue
+        
+        # Filtrar por rango de fechas si se especificó
+        if fecha:
+            if fecha_inicio and fecha < fecha_inicio:
+                continue
+            if fecha_fin and fecha > fecha_fin:
+                continue
+        else:
             continue
         
         # Convertir fecha a mes-año
-        if isinstance(fecha, datetime):
-            mes_ano = fecha.strftime('%Y-%m')
-        else:
-            try:
-                dt = datetime.strptime(str(fecha), '%Y-%m-%d')
-                mes_ano = dt.strftime('%Y-%m')
-            except:
-                try:
-                    dt = datetime.strptime(str(fecha), '%d/%m/%Y')
-                    mes_ano = dt.strftime('%Y-%m')
-                except:
-                    continue
+        mes_ano = fecha.strftime('%Y-%m')
         
         # Facturas (detalle == 'Factura')
         if detalle == 'Factura':
             facturas_por_mes.setdefault(prov, {})
             facturas_por_mes[prov][mes_ano] = facturas_por_mes[prov].get(mes_ano, 0) + (total or 0)
         
-        # Ahorros (detalle == 'Ahorro')
-        if detalle == 'Ahorro':
-            ahorros_por_mes.setdefault(prov, {})
-            ahorros_por_mes[prov][mes_ano] = ahorros_por_mes[prov].get(mes_ano, 0) + (total or 0)
+        # Abonos (detalle == 'Abono')
+        if detalle == 'Abono':
+            abonos_por_mes.setdefault(prov, {})
+            abonos_por_mes[prov][mes_ano] = abonos_por_mes[prov].get(mes_ano, 0) + (total or 0)
     
-    # Meses únicos combinando facturas y ahorros
+    # Meses únicos combinando facturas y abonos
     meses = set()
     for prov_data in facturas_por_mes.values():
         meses.update(prov_data.keys())
-    for prov_data in ahorros_por_mes.values():
+    for prov_data in abonos_por_mes.values():
         meses.update(prov_data.keys())
     meses = sorted(meses)
     
     # Formatear datos para Chart.js
     facturas_linea = []
-    ahorros_linea = []
-    proveedores_filtrados = sorted(set(list(facturas_por_mes.keys()) + list(ahorros_por_mes.keys())))
+    abonos_linea = []
+    proveedores_filtrados = sorted(set(list(facturas_por_mes.keys()) + list(abonos_por_mes.keys())))
     
     for prov in proveedores_filtrados:
         # Facturas
         data_fact = [facturas_por_mes.get(prov, {}).get(mes, 0) for mes in meses]
         facturas_linea.append({'proveedor': prov, 'datos': data_fact})
-        # Ahorros
-        data_ahorro = [ahorros_por_mes.get(prov, {}).get(mes, 0) for mes in meses]
-        ahorros_linea.append({'proveedor': prov, 'datos': data_ahorro})
+        # Abonos
+        data_ahorro = [abonos_por_mes.get(prov, {}).get(mes, 0) for mes in meses]
+        abonos_linea.append({'proveedor': prov, 'datos': data_ahorro})
+    
+    # Calcular totales por mes para la evolución temporal
+    facturas_por_mes_totales = {mes: 0 for mes in meses}
+    abonos_por_mes_totales = {mes: 0 for mes in meses}
+    
+    for prov in facturas_por_mes:
+        for mes, valor in facturas_por_mes[prov].items():
+            facturas_por_mes_totales[mes] += valor
+    
+    for prov in abonos_por_mes:
+        for mes, valor in abonos_por_mes[prov].items():
+            abonos_por_mes_totales[mes] += valor
     
     context = {
         'proveedores': proveedores,
         'facturas': mark_safe(json.dumps(facturas_totales)),
-        'ahorros': mark_safe(json.dumps(ahorros_totales)),
+        'abonos': mark_safe(json.dumps(abonos_totales)),
         'saldos': mark_safe(json.dumps(saldos_totales)),
         'proveedores_filtrados': proveedores_filtrados,
         'meses': mark_safe(json.dumps(meses)),
         'facturas_linea': mark_safe(json.dumps(facturas_linea)),
-        'ahorros_linea': mark_safe(json.dumps(ahorros_linea)),
+        'abonos_linea': mark_safe(json.dumps(abonos_linea)),
         'proveedor_filtrado': proveedor_filtrado or '',
+        # Nuevos datos para las gráficas
+        'total_facturado': total_facturado,
+        'total_abonado': total_abonado,
+        'porcentaje_abono': porcentaje_abono,
+        'facturas_por_mes_totales': mark_safe(json.dumps([facturas_por_mes_totales[mes] for mes in meses])),
+        'abonos_por_mes_totales': mark_safe(json.dumps([abonos_por_mes_totales[mes] for mes in meses])),
+        # Valores actuales de filtros para mostrarlos en el formulario
+        'fecha_inicio': fecha_inicio_str,
+        'fecha_fin': fecha_fin_str,
     }
     return render(request, config['dashboard_template'], context)
 
@@ -854,7 +924,7 @@ def descargar_excel_entidad(request, entity_type):
                 ws.cell(row=fila, column=4, value=mov['detalle'])
                 ws.cell(row=fila, column=5, value='')
                 total_facturas += float(mov['total'] or 0)
-            else:  # Ahorro/Abono
+            else:  # Abono/Abono
                 ws.cell(row=fila, column=4, value='')
                 ws.cell(row=fila, column=5, value=mov['detalle'])
                 total_abonos += float(mov['total'] or 0)
@@ -907,7 +977,7 @@ def descargar_excel_entidad(request, entity_type):
         filename = f"movimientos_{entity_type}_{nombre_entidad or 'todos'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         response['Content-Disposition'] = f'attachment; filename={filename}'
         
-        message.success(request,f"Archivo Excel generado correctamente: {filename}")
+        messages.success(request,f"Archivo Excel generado correctamente: {filename}")
         # Guardar el libro en la respuesta
         wb.save(response)
         
@@ -916,7 +986,7 @@ def descargar_excel_entidad(request, entity_type):
     except Exception as e:
         # En caso de error, retornar una respuesta de error
         import traceback
-        message.error(request,f"Error al generar el archivo Excel")
+        messages.error(request,f"Error al generar el archivo Excel")
         error_msg = f"Error al generar el archivo Excel: {str(e)}\n{traceback.format_exc()}"
         return HttpResponse(error_msg, status=500)
 
@@ -940,7 +1010,7 @@ def gestionar_persona_view(request, entity_type, id=None):
                     'id': row[0],
                     'proveedor': row[1],
                     'facturas': row[2] if len(row) > 2 else 0,
-                    'ahorros': row[3] if len(row) > 3 else 0,
+                    'abonos': row[3] if len(row) > 3 else 0,
                     'saldo': row[4] if len(row) > 4 else 0
                 }
                 break
@@ -985,7 +1055,7 @@ def gestionar_persona_view(request, entity_type, id=None):
                                 id,
                                 nombre,
                                 persona['facturas'],
-                                persona['ahorros'],
+                                persona['abonos'],
                                 persona['saldo']
                             ]
                             break
@@ -996,7 +1066,7 @@ def gestionar_persona_view(request, entity_type, id=None):
                     resumen_data.append(nueva_fila)
                 
                 # Guardar los datos actualizados en Excel
-                encabezados = ['Id', 'Proveedor', 'Total Facturas', 'Total Ahorro', 'Saldo']
+                encabezados = ['Id', 'Proveedor', 'Total Facturas', 'Total Abonos', 'Saldo']
                 if  guardar_en_excel(config['sheet_resumen'], resumen_data, encabezados, modo='overwrite'):
                     messages.success(request, f'Persona {nombre} {"actualizada" if es_edicion else "agregada"} correctamente. ✔️')
                     return redirect(config['url_resumen'])
@@ -1015,6 +1085,164 @@ def gestionar_persona_view(request, entity_type, id=None):
         'es_edicion': es_edicion,
         'persona': persona
     })
+
+def index_view(request, entity_type_proveedor, entity_type_cliente):
+    """Vista para la página principal con estadísticas generales"""
+    # Cargar datos de proveedores
+    config_proveedor = ENTITY_CONFIG[entity_type_proveedor]
+    config_cliente = ENTITY_CONFIG[entity_type_cliente]
+
+    resumen_proveedores = cargar_datos_excel(config_proveedor['sheet_resumen'])
+    movimientos_proveedores = cargar_datos_excel(config_proveedor['sheet_movimientos'])
+    
+    # Cargar datos de clientes (si existen)
+    try:
+        resumen_clientes = cargar_datos_excel(config_cliente['sheet_resumen'])
+        movimientos_clientes = cargar_datos_excel(config_cliente['sheet_movimientos'])
+    except:
+        resumen_clientes = []
+        movimientos_clientes = []
+    
+    # Calcular estadísticas generales de proveedores
+    total_facturado_proveedores = 0
+    total_abonado_proveedores = 0
+    saldo_total_proveedores = 0
+    proveedores_con_saldo = []
+    
+    for row in resumen_proveedores:
+        if len(row) < 5:
+            continue
+        factura = row[2] or 0
+        abonos = row[3] or 0
+        saldo = row[4] or 0
+        
+        total_facturado_proveedores += factura
+        total_abonado_proveedores += abonos
+        saldo_total_proveedores += saldo
+        
+        if saldo > 0:
+            proveedores_con_saldo.append({
+                'nombre': row[1],
+                'saldo': saldo
+            })
+    
+    # Ordenar proveedores por saldo (de mayor a menor)
+    proveedores_con_saldo.sort(key=lambda x: x['saldo'], reverse=True)
+    
+    # Calcular estadísticas generales de clientes (si existen)
+    total_facturado_clientes = 0
+    total_abonado_clientes = 0
+    saldo_total_clientes = 0
+    clientes_con_saldo = []
+    
+    for row in resumen_clientes:
+        if len(row) < 5:
+            continue
+        factura = row[2] or 0
+        abonos = row[3] or 0
+        saldo = row[4] or 0
+        
+        total_facturado_clientes += factura
+        total_abonado_clientes += abonos
+        saldo_total_clientes += saldo
+        
+        if saldo > 0:
+            clientes_con_saldo.append({
+                'nombre': row[1],
+                'saldo': saldo
+            })
+    
+    # Ordenar clientes por saldo (de mayor a menor)
+    clientes_con_saldo.sort(key=lambda x: x['saldo'], reverse=True)
+    
+    # Calcular porcentajes
+    porcentaje_abono_proveedores = (total_abonado_proveedores / total_facturado_proveedores * 100) if total_facturado_proveedores > 0 else 0
+    porcentaje_abono_clientes = (total_abonado_clientes / total_facturado_clientes * 100) if total_facturado_clientes > 0 else 0
+    
+    # Calcular flujo de caja neto
+    flujo_caja_neto = total_abonado_clientes - total_abonado_proveedores
+    
+    # Obtener movimientos recientes (últimos 10)
+    movimientos_recientes = []
+    todos_movimientos = []
+    
+    # Agregar movimientos de proveedores
+    for row in movimientos_proveedores:
+        if len(row) >= 6:
+            fecha, proveedor, detalle, observacion, total = row[1], row[2], row[3], row[4], row[5] or 0
+            if fecha and isinstance(fecha, datetime):
+                todos_movimientos.append({
+                    'fecha': fecha,
+                    'entidad': proveedor,
+                    'tipo': 'Proveedor',
+                    'detalle': detalle,
+                    'observacion': observacion,
+                    'total': total if detalle == 'Factura' else -total
+                })
+    
+    # Agregar movimientos de clientes (si existen)
+    for row in movimientos_clientes:
+        if len(row) >= 6:
+            fecha, cliente, detalle, observacion, total = row[1], row[2], row[3], row[4], row[5] or 0
+            if fecha and isinstance(fecha, datetime):
+                todos_movimientos.append({
+                    'fecha': fecha,
+                    'entidad': cliente,
+                    'tipo': 'Cliente',
+                    'detalle': detalle,
+                    'observacion': observacion,
+                    'total': total if detalle == 'Factura' else -total
+                })
+    
+    # Ordenar movimientos por fecha (más recientes primero)
+    todos_movimientos.sort(key=lambda x: x['fecha'], reverse=True)
+    movimientos_recientes = todos_movimientos[:10]
+      
+    seis_meses_atras = datetime.now() - timedelta(days=180)
+    facturacion_mensual = defaultdict(float)
+    abonos_mensual = defaultdict(float)
+    
+    for mov in todos_movimientos:
+        if mov['fecha'] >= seis_meses_atras:
+            mes = mov['fecha'].strftime('%Y-%m')
+            if mov['detalle'] == 'Factura':
+                facturacion_mensual[mes] += mov['total']
+            elif mov['detalle'] == 'Abono':
+                abonos_mensual[mes] += abs(mov['total'])
+    
+    # Ordenar meses
+    meses_ordenados = sorted(facturacion_mensual.keys())
+    facturacion_por_mes = [facturacion_mensual[mes] for mes in meses_ordenados]
+    abonos_por_mes = [abonos_mensual.get(mes, 0) for mes in meses_ordenados]
+    
+    context = {
+        # Estadísticas generales
+        'total_facturado_proveedores': total_facturado_proveedores,
+        'total_abonado_proveedores': total_abonado_proveedores,
+        'saldo_total_proveedores': saldo_total_proveedores,
+        'porcentaje_abono_proveedores': porcentaje_abono_proveedores,
+        
+        'total_facturado_clientes': total_facturado_clientes,
+        'total_abonado_clientes': total_abonado_clientes,
+        'saldo_total_clientes': saldo_total_clientes,
+        'porcentaje_abono_clientes': porcentaje_abono_clientes,
+        
+        'flujo_caja_neto': flujo_caja_neto,
+        
+        # Listas de entidades con saldo
+        'proveedores_con_saldo': proveedores_con_saldo[:5],  # Top 5
+        'clientes_con_saldo': clientes_con_saldo[:5],  # Top 5
+        
+        # Movimientos recientes
+        'movimientos_recientes': movimientos_recientes,
+        
+        # Datos para gráficas de tendencia
+        'meses_tendencia': meses_ordenados,
+        'facturacion_tendencia': facturacion_por_mes,
+        'abonos_tendencia': abonos_por_mes,
+    }
+    
+    return render(request, 'index.html', context)
 
 # Vistas específicas para proveedores y clientes
 def descargar_excel_proveedor(request):
@@ -1049,10 +1277,13 @@ def agregar_persona_Cliente(request):
     return agregar_persona_view(request, 'cliente')
 
 def index(request):
-    return dashboard_view(request, 'proveedor')
+    return index_view(request,'proveedor','cliente')
 
 def dashboardCliente(request):
     return dashboard_view(request, 'cliente')
+
+def dashboardProveedor(request):
+    return dashboard_view(request, 'proveedor')
 
 def guardar_movimiento(request):
     return guardar_movimiento_view(request, 'proveedor')

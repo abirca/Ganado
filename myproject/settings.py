@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 from django.contrib.humanize.templatetags.humanize import intcomma
 
 
@@ -71,3 +72,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+RUTA_EXCEL = os.path.join(BASE_DIR, 'Financiero.xlsx')
+RUTA_EXCEL_SEGUNDO = os.path.join(BASE_DIR, 'FinancieroBackup.xlsx')

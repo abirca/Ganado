@@ -13,7 +13,7 @@ class Movimiento(models.Model):
 class Resumen(models.Model):
     proveedor = models.CharField(max_length=255, unique=True)
     facturas = models.DecimalField(max_digits=15, decimal_places=0, default=0)
-    ahorros = models.DecimalField(max_digits=15, decimal_places=0, default=0)
+    Abonos = models.DecimalField(max_digits=15, decimal_places=0, default=0)
     saldo = models.DecimalField(max_digits=15, decimal_places=0, default=0)
 
     def __str__(self):
@@ -33,7 +33,7 @@ class Movimiento_Cliente(models.Model):
 class Resumen_Cliente(models.Model):
     proveedor = models.CharField(max_length=255, unique=True)
     facturas = models.DecimalField(max_digits=15, decimal_places=0, default=0)
-    ahorros = models.DecimalField(max_digits=15, decimal_places=0, default=0)
+    Abonos = models.DecimalField(max_digits=15, decimal_places=0, default=0)
     saldo = models.DecimalField(max_digits=15, decimal_places=0, default=0)
 
     def __str__(self):
