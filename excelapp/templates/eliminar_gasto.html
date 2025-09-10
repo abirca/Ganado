@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block content %}
+<div class="card shadow border my-4 p-4">
+    <h3 class="card-title mb-4">Eliminar Gasto</h3>
+    
+    <div class="alert alert-danger">
+        <h5>¿Está seguro de que desea eliminar el siguiente gasto?</h5>
+    </div>
+    
+    <table class="table table-bordered">
+        <tr>
+            <th>Fecha</th>
+            <td>{{ gasto.fecha }}</td>
+        </tr>
+        <tr>
+            <th>Categoría</th>
+            <td>{{ gasto.categoria }}</td>
+        </tr>
+        <tr>
+            <th>Placa</th>
+            <td>{{ gasto.placa|default:"-" }}</td>
+        </tr>
+        <tr>
+            <th>Conductor</th>
+            <td>{{ gasto.conductor|default:"-" }}</td>
+        </tr>
+        <tr>
+            <th>Precio</th>
+            <td>${{ gasto.precio|floatformat:0|intcomma }}</td>
+        </tr>
+    </table>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Eliminar</button>
+        <a href="{% url 'mi_app:gastos_lista' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

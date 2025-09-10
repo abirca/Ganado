@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Resumen de Gastos</h3>
+    <div>
+        <a href="?download=excel{% if categoria_filtro %}&categoria={{ categoria_filtro }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" 
+           class="btn btn-success">
+            <i class="bi bi-download"></i> Descargar Excel
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title">Filtrar Resumen</h5>
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="categoria" class="form-label">Categoría</label>
+                <select name="categoria" id="categoria" class="form-select">
+                    <option value="">Todas</option>
+                    <option value="Parqueadero" {% if categoria_filtro == 'Parqueadero' %}selected{% endif %}>Parqueadero</option>
+                    <option value="Flete" {% if categoria_filtro == 'Flete' %}selected{% endif %}>Flete</option>
+                    <option value="Varios" {% if categoria_filtro == 'Varios' %}selected{% endif %}>Varios</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" value="{{ fecha_inicio }}">
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" value="{{ fecha_fin }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Filtrar</button>
+                <a href="{% url 'mi_app:gastos_resumen' %}" class="btn btn-secondary">Limpiar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen por Categoría -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-header">
+        <h5>Resumen por Categoría</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Total</th>
+                        <th>Porcentaje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in resumen %}
+                    <tr>
+                        <td>{{ item.categoria }}</td>
+                        <td>${{ item.total|floatformat:0|intcomma }}</td>
+                        <td>{{ item.porcentaje|floatformat:1 }}%</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center">No hay datos</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-primary">
+                        <th>Total General</th>
+                        <th>${{ total_general|floatformat:0|intcomma }}</th>
+                        <th>100%</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Gastos por Mes -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-header">
+        <h5>Gastos por Mes</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Año</th>
+                        <th>Mes</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in gastos_por_mes %}
+                    <tr>
+                        <td>{{ item.ano }}</td>
+                        <td>{{ item.mes }}</td>
+                        <td>${{ item.total|floatformat:0|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center">No hay datos</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

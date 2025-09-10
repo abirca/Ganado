@@ -4,7 +4,7 @@
 {% load humanize %}
 <div class="card shadow border my-4 p-4">
 <h3 class="card-title mb-4">Agregar Movimiento</h3>
-  <form method="post" action="{% url 'guardar_movimiento_cliente' %}" class="row g-3">
+  <form method="post" action="{% url 'mi_app:movimiento_cliente_guardar' %}" class="row g-3">
     {% csrf_token %}
     <div class="col-md-4">
       <label for="filtroProveedor" class="form-label">Filtrar movimientos por proveedor:</label>
@@ -91,7 +91,6 @@
             <th>Detalle</th>
             <th>Observación</th>
             <th>Total</th>
-            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -102,9 +101,6 @@
               <td>{{ mov.detalle }}</td>
               <td>{{ mov.obs }}</td>
               <td>${{ mov.total|floatformat:0|intcomma }}</td>
-              <td>
-                <a href="{% url 'editar_movimiento_Cliente' mov.id %}" class="btn btn-sm btn-warning">Editar</a>
-              </td>
             </tr>
           {% empty %}
             <tr><td colspan="6" class="text-center">No hay movimientos aún</td></tr>

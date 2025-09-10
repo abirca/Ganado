@@ -20,13 +20,18 @@
                       {% endfor %}
                   </select>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
                   <label for="fechaInicio" class="form-label">Fecha Inicio:</label>
                   <input type="date" id="fechaInicio" name="fecha_inicio" class="form-control" value="{{ fecha_inicio }}">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
                   <label for="fechaFin" class="form-label">Fecha Fin:</label>
                   <input type="date" id="fechaFin" name="fecha_fin" class="form-control" value="{{ fecha_fin }}">
+              </div>
+              <div class="col-md-2">
+                <label for="filtroIdFactura" class="form-label">ID Factura:</label>
+                <input type="text" name="id_factura" id="filtroIdFactura" class="form-control" 
+                       placeholder="Ej: F-001" value="{{ id_factura_filtrado }}">
               </div>
               <div class="col-md-3 d-flex align-items-end">
                   <button type="submit" class="btn btn-primary me-2">Filtrar</button>
@@ -165,6 +170,7 @@
     document.getElementById('filtroProveedor').value = '';
     document.getElementById('fechaInicio').value = '';
     document.getElementById('fechaFin').value = '';
+    document.getElementById('id_factura').value = '';
     document.getElementById('filterForm').submit();
   });
   

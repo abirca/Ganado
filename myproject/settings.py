@@ -50,11 +50,7 @@ TEMPLATES = [
     },
 ]
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "192.168.100.6",   # <-- tu IP local
-]
+ALLOWED_HOSTS = ["*"]
 
 WSGI_APPLICATION = 'myproject.wsgi.application'
 

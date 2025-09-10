@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load form_tags %}
+{% block content %}
+<h2>Dashboard de Gastos</h2>
+
+<!-- Formulario de Filtros -->
+<div class="card mb-4">
+  <div class="card-header">
+      <h5>Filtros</h5>
+  </div>
+  <div class="card-body">
+      <form method="get" id="filterForm">
+          <div class="row">
+              <div class="col-md-3">
+                  <label for="categoria" class="form-label">Categoría:</label>
+                  <select id="categoria" name="categoria" class="form-select">
+                      <option value="">-- Todas --</option>
+                      <option value="Parqueadero" {% if categoria_filtro == 'Parqueadero' %}selected{% endif %}>Parqueadero</option>
+                      <option value="Flete" {% if categoria_filtro == 'Flete' %}selected{% endif %}>Flete</option>
+                      <option value="Varios" {% if categoria_filtro == 'Varios' %}selected{% endif %}>Varios</option>
+                  </select>
+              </div>
+              <div class="col-md-2">
+                  <label for="placa" class="form-label">Placa:</label>
+                  <select id="placa" name="placa" class="form-select">
+                      <option value="">-- Todas --</option>
+                      {% for placa in placas_unicas %}
+                      <option value="{{ placa }}" {% if placa_filtro == placa %}selected{% endif %}>{{ placa }}</option>
+                      {% endfor %}
+                  </select>
+              </div>
+              <div class="col-md-2">
+                  <label for="fechaInicio" class="form-label">Fecha Inicio:</label>
+                  <input type="date" id="fechaInicio" name="fecha_inicio" class="form-control" value="{{ fecha_inicio }}">
+              </div>
+              <div class="col-md-2">
+                  <label for="fechaFin" class="form-label">Fecha Fin:</label>
+                  <input type="date" id="fechaFin" name="fecha_fin" class="form-control" value="{{ fecha_fin }}">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                  <button type="submit" class="btn btn-primary me-2">Filtrar</button>
+                  <button type="button" id="limpiarFiltros" class="btn btn-secondary">Limpiar</button>
+              </div>
+          </div>
+      </form>
+  </div>
+</div>
+
+<!-- Panel de KPI -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Total Gastos</h5>
+                <h3 class="card-text">${{ total_gastos|floatformat:0|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Promedio Mensual</h5>
+                <h3 class="card-text">${{ promedio_mensual|floatformat:0|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Categoría con Mayor Gasto</h5>
+                <h3 class="card-text">{{ categoria_mayor_gasto }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Meses Analizados</h5>
+                <h3 class="card-text">{{ meses|length }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficas en row -->
+<div class="row mb-4">
+    <!-- Gráfica de Distribución por Categoría -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Distribución de Gastos por Categoría</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoriasChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gráfica de Evolución Temporal -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Evolución Temporal de Gastos</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="evolucionTemporalChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfica de Gastos por Mes y Categoría -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Gastos por Mes y Categoría</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="gastosMesCategoriaChart" style="max-height: 300px;"></canvas>
+    </div>
+</div>
+
+<!-- Top Gastos y Conductores en row -->
+<div class="row mb-4">
+    <!-- Top 5 Gastos -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Top 5 Gastos Más Altos</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Categoría</th>
+                                <th>Placa</th>
+                                <th>Conductor</th>
+                                <th>Precio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for gasto in top_gastos %}
+                            <tr>
+                                <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+                                <td>{{ gasto.categoria }}</td>
+                                <td>{{ gasto.placa|default:"-" }}</td>
+                                <td>{{ gasto.conductor|default:"-" }}</td>
+                                <td>${{ gasto.precio|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No hay gastos</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top 5 Conductores -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Top 5 Conductores con Más Gastos</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="topConductoresChart" style="max-height: 250px;"></canvas>
+                <div class="table-responsive mt-3">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Conductor</th>
+                                <th>Total Gastos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conductor, total in top_conductores %}
+                            <tr>
+                                <td>{{ conductor|default:"Sin especificar" }}</td>
+                                <td>${{ total|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center">No hay datos</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Placas -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Top 5 Placas con Más Gastos</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="topPlacasChart" style="max-height: 300px;"></canvas>
+        <div class="table-responsive mt-3">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Placa</th>
+                        <th>Total Gastos</th>
+                        <th>Promedio por Gasto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for placa, total in top_placas %}
+                    <tr>
+                        <td>{{ placa|default:"Sin especificar" }}</td>
+                        <td>${{ total|floatformat:0|intcomma }}</td>
+                        <td>
+                            {% with gastos_placa=gastos_filtrados|filter_placa:placa %}
+                            ${{ gastos_placa|avg_gasto|floatformat:0|intcomma }}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center">No hay datos</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Datos para las gráficas
+  const categorias = {{ categorias|safe }};
+  const totalesPorCategoria = {{ totales_por_categoria|safe }};
+  const meses = {{ meses|safe }};
+  const gastosPorMes = {{ gastos_por_mes|safe }};
+  const datasetsApiladas = {{ datasets_apiladas|safe }};
+  const mesesApiladas = {{ meses_apiladas|safe }};
+  
+  // Datos para top placas
+  const topPlacasLabels = {{ top_placas|map_first|safe }};
+  const topPlacasData = {{ top_placas|map_second|safe }};
+  
+  // Datos para top conductores
+  const topConductoresLabels = {{ top_conductores|map_first|safe }};
+  const topConductoresData = {{ top_conductores|map_second|safe }};
+
+  // Función para limpiar filtros
+  document.getElementById('limpiarFiltros').addEventListener('click', function() {
+    document.getElementById('categoria').value = '';
+    document.getElementById('placa').value = '';
+    document.getElementById('fechaInicio').value = '';
+    document.getElementById('fechaFin').value = '';
+    document.getElementById('filterForm').submit();
+  });
+
+  // Gráfica de Distribución por Categoría
+  new Chart(document.getElementById('categoriasChart'), {
+    type: 'pie',
+    data: {
+      labels: categorias,
+      datasets: [{
+        data: totalesPorCategoria,
+        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Gráfica de Evolución Temporal
+  new Chart(document.getElementById('evolucionTemporalChart'), {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: [{
+        label: 'Gastos',
+        data: gastosPorMes,
+        borderColor: '#4e73df',
+        backgroundColor: 'rgba(78, 115, 223, 0.05)',
+        pointRadius: 3,
+        pointBackgroundColor: '#4e73df',
+        pointBorderColor: '#4e73df',
+        pointHoverRadius: 3,
+        pointHoverBackgroundColor: '#4e73df',
+        pointHoverBorderColor: '#4e73df',
+        pointHitRadius: 10,
+        pointBorderWidth: 2,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          ticks: {
+            beginAtZero: true,
+            callback: function(value) {
+              return '$' + value.toLocaleString('es-CO', {minimumFractionDigits: 0});
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Gráfica de Gastos por Mes y Categoría (apilada)
+  new Chart(document.getElementById('gastosMesCategoriaChart'), {
+    type: 'bar',
+    data: {
+      labels: mesesApiladas,
+      datasets: datasetsApiladas
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          stacked: true,
+        },
+        y: {
+          stacked: true,
+          ticks: {
+            beginAtZero: true,
+            callback: function(value) {
+              return '$' + value.toLocaleString('es-CO', {minimumFractionDigits: 0});
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Gráfica de Top Placas
+  new Chart(document.getElementById('topPlacasChart'), {
+    type: 'bar',
+    data: {
+      labels: topPlacasLabels,
+      datasets: [{
+        label: 'Gastos por Placa',
+        data: topPlacasData,
+        backgroundColor: '#1cc88a',
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return '$' + value.toLocaleString('es-CO', {minimumFractionDigits: 0});
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Gráfica de Top Conductores
+  new Chart(document.getElementById('topConductoresChart'), {
+    type: 'doughnut',
+    data: {
+      labels: topConductoresLabels,
+      datasets: [{
+        data: topConductoresData,
+        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.label || '';
+              if (label) {
+                label += ': ';
+              }
+              label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

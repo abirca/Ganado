@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block content %}
+<div class="card shadow border my-4 p-4">
+    <h3 class="card-title mb-4">Agregar Gasto</h3>
+    <form method="post" class="row g-3">
+        {% csrf_token %}
+        <div class="col-md-4">
+            {{ form.fecha.label_tag }} 
+            {{ form.fecha }}
+        </div>
+        <div class="col-md-4">
+            {{ form.categoria.label_tag }} 
+            {{ form.categoria }}
+        </div>
+        <div class="col-md-4">
+            {{ form.placa.label_tag }} 
+            {{ form.placa }}
+        </div>
+        <div class="col-md-6">
+            {{ form.conductor.label_tag }} 
+            {{ form.conductor }}
+        </div>
+        <div class="col-md-6">
+            {{ form.precio.label_tag }}
+            <input type="text" name="precio" id="id_precio" class="form-control" value="{{ form.precio.value|default_if_none:'' }}">
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary mt-3">Guardar</button>
+            <a href="{% url 'mi_app:gastos_lista' %}" class="btn btn-secondary mt-3">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<!-- Resumen de gastos recientes -->
+<div class="card shadow border my-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Resumen de Gastos Recientes</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center bg-info text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Hoy</h6>
+                        <h4>${{ total_hoy|floatformat:0|intcomma }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-primary text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Total Mes</h6>
+                        <h4>${{ total_mes|floatformat:0|intcomma }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-success text-white">
+                    <div class="card-body">
+                        <h6 class="card-title">Por Categoría</h6>
+                        <h4>{{ categorias_count }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-warning text-dark">
+                    <div class="card-body">
+                        <h6 class="card-title">Gastos Registrados</h6>
+                        <h4>{{ total_gastos }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Últimos Gastos</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Categoría</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for gasto in ultimos_gastos %}
+                            <tr>
+                                <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+                                <td>{{ gasto.categoria }}</td>
+                                <td>${{ gasto.precio|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">No hay gastos registrados</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>Resumen por Categoría</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Total</th>
+                                <th>Porcentaje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in resumen_categorias %}
+                            <tr>
+                                <td>{{ cat.categoria }}</td>
+                                <td>${{ cat.total|floatformat:0|intcomma }}</td>
+                                <td>{{ cat.porcentaje|floatformat:1 }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">No hay datos</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const precioInput = document.getElementById('id_precio');
+    
+        function formatNumberToPesos(value) {
+          value = value.replace(/\D/g, ''); // solo números
+          if (!value) return '';
+          return '$' + parseInt(value, 10).toLocaleString('es-CO');
+        }
+    
+        function cleanPesos(value) {
+          return value.replace(/[^\d]/g, ''); // eliminar $ y separadores
+        }
+    
+        precioInput.addEventListener('input', function () {
+          let rawValue = precioInput.value;
+          let cursorPos = precioInput.selectionStart;
+    
+          const cleanedBefore = cleanPesos(rawValue.substring(0, cursorPos));
+          const isFirstChar = cleanedBefore.length === 1 && cleanPesos(rawValue).length === 1;
+    
+          const cleaned = cleanPesos(rawValue);
+          const formatted = formatNumberToPesos(cleaned);
+    
+          precioInput.value = formatted;
+    
+          if (isFirstChar) {
+            precioInput.setSelectionRange(formatted.length, formatted.length);
+          } else {
+            const newCursorPos = formatted.length - (cleanPesos(formatted).length - cleanedBefore.length);
+            precioInput.setSelectionRange(newCursorPos, newCursorPos);
+          }
+        });
+    
+        // limpiar antes de enviar
+        precioInput.form.addEventListener('submit', function () {
+          precioInput.value = cleanPesos(precioInput.value);
+        });
+    });
+</script>
+{% endblock %}
