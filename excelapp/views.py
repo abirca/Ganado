@@ -382,6 +382,12 @@ def movimientos_list_view(request, entity_type):
     paginator = Paginator(movimientos, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    # Remove 'page' from the query string to avoid duplicate page parameters
+    params = request.GET.copy()
+    if 'page' in params:
+        del params['page']
+    all_params = params.urlencode()
     
     return render(request, config['movimientos_template'], {
         'resumen': resumen,
@@ -392,7 +398,7 @@ def movimientos_list_view(request, entity_type):
         'fecha_fin': fecha_fin,
         'paginator': paginator,
         'page_obj': page_obj,
-        'all_params': request.GET.urlencode()  # Para mantener todos los parámetros en los enlaces de paginación
+        'all_params': all_params  # Para mantener todos los parámetros en los enlaces de paginación
     })
 
 def agregar_persona_view(request, entity_type):
@@ -894,7 +900,13 @@ def descargar_excel_entidad(request, entity_type):
         fila = 4
         total_facturas = 0
         total_abonos = 0
-        
+        # Ordenar movimientos filtrados por fecha de forma ascendente
+        movimientos_filtrados.sort(key=lambda x: (
+            x['fecha'] if isinstance(x['fecha'], datetime) else
+            datetime.strptime(x['fecha'], "%Y-%m-%d") if isinstance(x['fecha'], str) and "-" in x['fecha'] else
+            datetime.strptime(x['fecha'], "%d/%m/%Y") if isinstance(x['fecha'], str) and "/" in x['fecha'] else
+            datetime.min
+        ))
         for mov in movimientos_filtrados:
             # ID
             ws.cell(row=fila, column=1, value=mov['id'])
