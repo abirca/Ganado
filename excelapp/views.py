@@ -32,7 +32,6 @@ from .forms import GastoForm, MovimientoClienteForm, MovimientoForm, ProveedorFo
 
 
 RUTA_EXCEL = settings.RUTA_EXCEL
-RUTA_EXCEL_SEGUNDO =  settings.RUTA_EXCEL_SEGUNDO
 # Configurar a español (Colombia por ejemplo)
 locale.setlocale(locale.LC_TIME, 'es_CO.UTF-8') 
 # Configuración para tipos de entidad (Proveedores/Clientes)
@@ -150,7 +149,6 @@ def guardar_en_excel(sheet_name, datos, encabezados=None, modo='overwrite'):
             ws.append(dato)
         
         wb.save(RUTA_EXCEL)
-        wb.save(RUTA_EXCEL_SEGUNDO)
         return True
     except Exception as e:
         print(f"Error al guardar en Excel: {e}")
