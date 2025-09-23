@@ -29,7 +29,7 @@
       <button type="submit" class="btn btn-primary">
         {% if es_edicion %}Actualizar{% else %}Agregar{% endif %}
       </button>
-      <a href="{% if request.path|slice:":15" == "/agregar_persona_Cliente" or request.path|slice:":13" == "/editar_cliente" %}{% url 'resumenCliente' %}{% else %}{% url 'resumen' %}{% endif %}" class="btn btn-secondary ms-2">
+      <a href="{% if request.path|slice:":15" == "/mi_app:cliente_persona_agregar" or request.path|slice:":13" == "/mi_app:cliente_persona_editar" %}{% url 'mi_app:clientes_resumen' %}{% else %}{% url 'mi_app:clientes_resumen' %}{% endif %}" class="btn btn-secondary ms-2">
         Cancelar
       </a>
     </div>

@@ -3,12 +3,12 @@
 {% block content %}
 
 <div class="card shadow border my-4 p-4">
-  <h3 class="card-title mb-4">Movimientos de Clientes</h3>
+  <h3 class="card-title mb-4">Movimientos</h3>
 
   <!-- Formulario de filtros -->
   <form method="get" class="row g-3 mb-4">
     <div class="col-md-3">
-      <label for="filtroProveedor" class="form-label">Filtrar por cliente:</label>
+      <label for="filtroProveedor" class="form-label">Filtrar por proveedor:</label>
       <select id="filtroProveedor" name="proveedor" class="form-select">
         <option value="">-- Todos --</option>
         {% for row in resumen %}
@@ -17,6 +17,19 @@
           {% endwith %}
         {% endfor %}
       </select>
+    </div>
+    <div class="col-md-2">
+      <label for="filtroEstado" class="form-label">Estado:</label>
+      <select id="filtroEstado" name="estado" class="form-select">
+        <option value="">-- Todos --</option>
+        <option value="Activa" {% if estado_filtrado == "Activa" %}selected{% endif %}>Activa</option>
+        <option value="Inactiva" {% if estado_filtrado == "Inactiva" %}selected{% endif %}>Inactiva</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label for="filtroIdFactura" class="form-label">ID Factura:</label>
+      <input type="text" name="id_factura" id="filtroIdFactura" class="form-control" 
+             placeholder="Ej: F-001" value="{{ id_factura_filtrado }}">
     </div>
     <div class="col-md-2">
       <label for="fechaInicio" class="form-label">Fecha inicio:</label>
@@ -30,20 +43,23 @@
       <label for="filtroFecha" class="form-label">Fecha específica:</label>
       <input type="date" name="fecha" id="filtroFecha" class="form-control" value="{{ fecha_filtrada }}">
     </div>
-    <div class="col-md-3 d-flex align-items-end gap-2">
+    <div class="col-md-4 d-flex align-items-end gap-2">
       <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-      <a href="{% url 'descargar_excel_cliente' %}?proveedor={{ proveedor_filtrado }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha_filtrada }}" 
+      <a href="{% url 'mi_app:clientes_descargar_excel' %}?proveedor={{ proveedor_filtrado }}&estado={{ estado_filtrado }}&id_factura={{ id_factura_filtrado }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha_filtrada }}" 
          class="btn btn-success w-100" download>
         <i class="bi bi-download me-1"></i> Descargar Excel
       </a>
+      <a href="?" class="btn btn-secondary">Limpiar</a>
     </div>
   </form>
 
   <!-- Información de filtros aplicados -->
-  {% if proveedor_filtrado or fecha_filtrada or fecha_inicio or fecha_fin %}
+  {% if proveedor_filtrado or estado_filtrado or id_factura_filtrado or fecha_filtrada or fecha_inicio or fecha_fin %}
   <div class="alert alert-info mb-3">
     <strong>Filtros aplicados:</strong>
-    {% if proveedor_filtrado %}Cliente: {{ proveedor_filtrado }}{% endif %}
+    {% if proveedor_filtrado %}Proveedor: {{ proveedor_filtrado }}{% endif %}
+    {% if estado_filtrado %} | Estado: {{ estado_filtrado }}{% endif %}
+    {% if id_factura_filtrado %} | ID Factura: {{ id_factura_filtrado }}{% endif %}
     {% if fecha_filtrada %} | Fecha: {{ fecha_filtrada }}{% endif %}
     {% if fecha_inicio %} | Desde: {{ fecha_inicio }}{% endif %}
     {% if fecha_fin %} | Hasta: {{ fecha_fin }}{% endif %}
@@ -56,10 +72,12 @@
       <thead class="table-primary">
         <tr>
           <th>Fecha</th>
-          <th>Cliente</th>
+          <th>Proveedor</th>
           <th>Detalle</th>
           <th>Observación</th>
           <th>Total</th>
+          <th>ID Factura</th>
+          <th>Estado</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -71,14 +89,22 @@
             <td>{{ mov.detalle }}</td>
             <td>{{ mov.obs }}</td>
             <td>${{ mov.total|floatformat:0|intcomma }}</td>
+            <td>{{ mov.id_factura|default:"" }}</td>
             <td>
-              {% if mov.id %}
-                <a href="{% url 'editar_movimiento_Cliente' mov.id %}" class="btn btn-sm btn-warning">Editar</a>
+              {% if mov.estado %}
+                <span class="badge {% if mov.estado == 'Activa' %}bg-success{% else %}bg-secondary{% endif %}">
+                  {{ mov.estado }}
+                </span>
+              {% endif %}
+            </td>
+            <td>
+              {% if mov.estado == 'Activa' and mov.obs == 'Abono' %}
+              <a href="{% url 'mi_app:movimiento_cliente_editar' mov.id %}" class="btn btn-sm btn-warning">Editar</a>
               {% endif %}
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="text-center">No hay movimientos con los filtros aplicados</td></tr>
+          <tr><td colspan="8" class="text-center">No hay movimientos con los filtros aplicados</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -91,7 +117,7 @@
         <ul class="pagination justify-content-center">
           {% if page_obj.has_previous %}
             <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if proveedor_filtrado %}&proveedor={{ proveedor_filtrado }}{% endif %}{% if fecha_filtrada %}&fecha={{ fecha_filtrada }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Anterior">
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if all_params %}&{{ all_params }}{% endif %}" aria-label="Anterior">
                 <span aria-hidden="true">&laquo;</span>
               </a>
             </li>
@@ -104,14 +130,14 @@
               <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
             {% else %}
               <li class="page-item">
-                <a class="page-link" href="?page={{ num }}{% if proveedor_filtrado %}&proveedor={{ proveedor_filtrado }}{% endif %}{% if fecha_filtrada %}&fecha={{ fecha_filtrada }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}">{{ num }}</a>
+                <a class="page-link" href="?page={{ num }}{% if all_params %}&{{ all_params }}{% endif %}">{{ num }}</a>
               </li>
             {% endif %}
           {% endfor %}
 
           {% if page_obj.has_next %}
             <li class="page-item">
-              <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if proveedor_filtrado %}&proveedor={{ proveedor_filtrado }}{% endif %}{% if fecha_filtrada %}&fecha={{ fecha_filtrada }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}" aria-label="Siguiente">
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if all_params %}&{{ all_params }}{% endif %}" aria-label="Siguiente">
                 <span aria-hidden="true">&raquo;</span>
               </a>
             </li>
@@ -127,6 +153,8 @@
 <script>
   document.addEventListener("DOMContentLoaded", function() {
     const filtroProveedor = document.getElementById("filtroProveedor");
+    const filtroEstado = document.getElementById("filtroEstado");
+    const filtroIdFactura = document.getElementById("filtroIdFactura");
     const fechaInicio = document.getElementById("fechaInicio");
     const fechaFin = document.getElementById("fechaFin");
     const filtroFecha = document.getElementById("filtroFecha");
@@ -155,6 +183,8 @@
     // Actualizar enlace de descarga cuando cambian los filtros
     function actualizarEnlaceDescarga() {
       const proveedor = encodeURIComponent(filtroProveedor.value || '');
+      const estado = encodeURIComponent(filtroEstado.value || '');
+      const idFactura = encodeURIComponent(filtroIdFactura.value || '');
       const fechaInicioVal = encodeURIComponent(fechaInicio?.value || '');
       const fechaFinVal = encodeURIComponent(fechaFin?.value || '');
       const fechaVal = encodeURIComponent(filtroFecha?.value || '');
@@ -165,6 +195,8 @@
         let params = [];
         
         if (proveedor) params.push(`proveedor=${proveedor}`);
+        if (estado) params.push(`estado=${estado}`);
+        if (idFactura) params.push(`id_factura=${idFactura}`);
         if (fechaInicioVal) params.push(`fecha_inicio=${fechaInicioVal}`);
         if (fechaFinVal) params.push(`fecha_fin=${fechaFinVal}`);
         if (fechaVal) params.push(`fecha=${fechaVal}`);
@@ -174,7 +206,7 @@
     }
 
     // Agregar event listeners para actualizar el enlace de descarga
-    [filtroProveedor, fechaInicio, fechaFin, filtroFecha].forEach(element => {
+    [filtroProveedor, filtroEstado, filtroIdFactura, fechaInicio, fechaFin, filtroFecha].forEach(element => {
       if (element) {
         element.addEventListener("change", actualizarEnlaceDescarga);
         element.addEventListener("input", actualizarEnlaceDescarga);

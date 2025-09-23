@@ -9,11 +9,11 @@
 
 <!-- Resumen General -->
 <div class="row mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-primary text-white mb-4">
             <div class="card-body">
                 <h5 class="card-title">Flujo de Caja Neto</h5>
-                <h3 class="card-text">${{ flujo_caja_neto|floatformat:2|intcomma }}</h3>
+                <h3 class="card-text">${{ flujo_caja_neto|floatformat:0|intcomma }}</h3>
                 <p class="card-text small">
                     {% if flujo_caja_neto > 0 %}
                         <i class="fas fa-arrow-up"></i> Positivo
@@ -26,33 +26,130 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-info text-white mb-4">
             <div class="card-body">
                 <h5 class="card-title">Por Cobrar a Clientes</h5>
-                <h3 class="card-text">${{ saldo_total_clientes|floatformat:2|intcomma }}</h3>
+                <h3 class="card-text">${{ saldo_total_clientes|floatformat:0|intcomma }}</h3>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-warning text-white mb-4">
             <div class="card-body">
                 <h5 class="card-title">Por Pagar a Proveedores</h5>
-                <h3 class="card-text">${{ saldo_total_proveedores|floatformat:2|intcomma }}</h3>
+                <h3 class="card-text">${{ saldo_total_proveedores|floatformat:0|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Total Gastos</h5>
+                <h3 class="card-text">${{ total_gastos|floatformat:0|intcomma }}</h3>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Segunda fila de KPIs -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Ingresos Netos</h5>
+                <h3 class="card-text">${{ ingresos_netos|floatformat:0|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-purple text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Margen de Beneficio</h5>
+                <h3 class="card-text">{{ margen_beneficio|floatformat:2 }}%</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-teal text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Facturación Proveedores</h5>
+                <h3 class="card-text">${{ total_facturado_proveedores|floatformat:0|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-orange text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Facturación Clientes</h5>
+                <h3 class="card-text">${{ total_facturado_clientes|floatformat:0|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-purple { background-color: #6f42c1 !important; }
+    .bg-teal { background-color: #20c9a6 !important; }
+    .bg-orange { background-color: #fd7e14 !important; }
+</style>
 
 <!-- Tendencias -->
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5>Tendencia de Facturación y Abonos (Últimos 6 Meses)</h5>
+                <h5>Tendencia de Facturación, Abonos y Gastos (Últimos 6 Meses)</h5>
             </div>
             <div class="card-body">
                 <canvas id="tendenciaChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Distribución de Gastos -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <h5>Distribución de Gastos por Categoría</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="gastosChart" style="height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white">
+                <h5>Top 5 Gastos Más Altos</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Categoría</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for gasto in top_gastos %}
+                            <tr>
+                                <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+                                <td>{{ gasto.categoria }}</td>
+                                <td>${{ gasto.precio|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">No hay gastos registrados</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -71,13 +168,13 @@
                     <div class="col-6">
                         <div class="border rounded p-3 text-center">
                             <h6>Total Facturado</h6>
-                            <h4 class="text-primary">${{ total_facturado_proveedores|floatformat:2|intcomma }}</h4>
+                            <h4 class="text-primary">${{ total_facturado_proveedores|floatformat:0|intcomma }}</h4>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="border rounded p-3 text-center">
                             <h6>Total Abonado</h6>
-                            <h4 class="text-success">${{ total_abonado_proveedores|floatformat:2|intcomma }}</h4>
+                            <h4 class="text-success">${{ total_abonado_proveedores|floatformat:0|intcomma }}</h4>
                         </div>
                     </div>
                 </div>
@@ -95,7 +192,7 @@
                     {% for proveedor in proveedores_con_saldo %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{ proveedor.nombre }}
-                        <span class="badge bg-warning rounded-pill">${{ proveedor.saldo|floatformat:2|intcomma }}</span>
+                        <span class="badge bg-warning rounded-pill">${{ proveedor.saldo|floatformat:0|intcomma }}</span>
                     </li>
                     {% empty %}
                     <li class="list-group-item">No hay proveedores con saldo pendiente</li>
@@ -116,13 +213,13 @@
                     <div class="col-6">
                         <div class="border rounded p-3 text-center">
                             <h6>Total Facturado</h6>
-                            <h4 class="text-primary">${{ total_facturado_clientes|floatformat:2|intcomma }}</h4>
+                            <h4 class="text-primary">${{ total_facturado_clientes|floatformat:0|intcomma }}</h4>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="border rounded p-3 text-center">
                             <h6>Total Abonado</h6>
-                            <h4 class="text-success">${{ total_abonado_clientes|floatformat:2|intcomma }}</h4>
+                            <h4 class="text-success">${{ total_abonado_clientes|floatformat:0|intcomma }}</h4>
                         </div>
                     </div>
                 </div>
@@ -140,7 +237,7 @@
                     {% for cliente in clientes_con_saldo %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         {{ cliente.nombre }}
-                        <span class="badge bg-warning rounded-pill">${{ cliente.saldo|floatformat:2|intcomma }}</span>
+                        <span class="badge bg-warning rounded-pill">${{ cliente.saldo|floatformat:0|intcomma }}</span>
                     </li>
                     {% empty %}
                     <li class="list-group-item">No hay clientes con saldo pendiente</li>
@@ -177,14 +274,14 @@
                                 <td>{{ mov.fecha|date:"d/m/Y" }}</td>
                                 <td>{{ mov.entidad }}</td>
                                 <td>
-                                    <span class="badge {% if mov.tipo == 'Proveedor' %}bg-warning{% else %}bg-info{% endif %}">
+                                    <span class="badge {% if mov.tipo == 'Proveedor' %}bg-warning{% elif mov.tipo == 'Cliente' %}bg-info{% else %}bg-danger{% endif %}">
                                         {{ mov.tipo }}
                                     </span>
                                 </td>
                                 <td>{{ mov.detalle }}</td>
                                 <td>{{ mov.observacion }}</td>
                                 <td class="text-end {% if mov.total > 0 %}text-success{% else %}text-danger{% endif %}">
-                                    ${{ mov.total|floatformat:2|intcomma }}
+                                    ${{ mov.total|floatformat:0|intcomma }}
                                 </td>
                             </tr>
                             {% empty %}
@@ -202,17 +299,22 @@
 
 <!-- Enlaces rápidos -->
 <div class="row">
-    <div class="col-md-4 mb-3"><a href="{% url 'dashboardProveedor' %}" class="btn btn-primary w-100 py-3">
-        
+    <div class="col-md-3 mb-3">
+        <a href="{% url 'mi_app:proveedores_dashboard' %}" class="btn btn-primary w-100 py-3">
             <i class="fas fa-truck me-2"></i> Dashboard de Proveedores
         </a>
     </div>
-    <div class="col-md-4 mb-3">
-        <a href="{% url 'dashboardCliente' %}" class="btn btn-success w-100 py-3">
+    <div class="col-md-3 mb-3">
+        <a href="{% url 'mi_app:clientes_dashboard' %}" class="btn btn-success w-100 py-3">
             <i class="fas fa-users me-2"></i> Dashboard de Clientes
         </a>
     </div>
-    <div class="col-md-4 mb-3">
+    <div class="col-md-3 mb-3">
+        <a href="{% url 'mi_app:gastos_dashboard' %}" class="btn btn-danger w-100 py-3">
+            <i class="fas fa-money-bill me-2"></i> Dashboard de Gastos
+        </a>
+    </div>
+    <div class="col-md-3 mb-3">
         <a href="#" class="btn btn-info w-100 py-3">
             <i class="fas fa-file-export me-2"></i> Generar Reporte
         </a>
@@ -225,6 +327,7 @@
     const mesesTendencia = {{ meses_tendencia|safe }};
     const facturacionTendencia = {{ facturacion_tendencia|safe }};
     const abonosTendencia = {{ abonos_tendencia|safe }};
+    const gastosTendencia = {{ gastos_tendencia|safe }};
     
     new Chart(document.getElementById('tendenciaChart'), {
         type: 'line',
@@ -262,6 +365,22 @@
                     pointBorderWidth: 2,
                     fill: true,
                     tension: 0.3
+                },
+                {
+                    label: 'Gastos',
+                    data: gastosTendencia,
+                    borderColor: '#e74a3b',
+                    backgroundColor: 'rgba(231, 74, 59, 0.05)',
+                    pointRadius: 3,
+                    pointBackgroundColor: '#e74a3b',
+                    pointBorderColor: '#e74a3b',
+                    pointHoverRadius: 3,
+                    pointHoverBackgroundColor: '#e74a3b',
+                    pointHoverBorderColor: '#e74a3b',
+                    pointHitRadius: 10,
+                    pointBorderWidth: 2,
+                    fill: true,
+                    tension: 0.3
                 }
             ]
         },
@@ -277,7 +396,7 @@
                     ticks: {
                         beginAtZero: true,
                         callback: function(value) {
-                            return '$' + value.toLocaleString('es-CO');
+                            return '$' + value.toLocaleString('es-CO', {minimumFractionDigits: 0});
                         }
                     }
                 }
@@ -294,7 +413,43 @@
                             if (label) {
                                 label += ': ';
                             }
-                            label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 2});
+                            label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Gráfica de distribución de gastos
+    const gastosCategorias = {{ gastos_categorias|safe }};
+    const gastosValores = {{ gastos_valores|safe }};
+    
+    new Chart(document.getElementById('gastosChart'), {
+        type: 'pie',
+        data: {
+            labels: gastosCategorias,
+            datasets: [{
+                data: gastosValores,
+                backgroundColor: ['#e74a3b', '#fd7e14', '#f6c23e', '#1cc88a', '#36b9cc', '#4e73df', '#6f42c1'],
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '$' + context.raw.toLocaleString('es-CO', {minimumFractionDigits: 0});
                             return label;
                         }
                     }

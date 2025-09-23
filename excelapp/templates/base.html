@@ -6,6 +6,8 @@
   <title>Mi Aplicación</title>
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
       /* Ajustes personalizados */
       @media (max-width: 768px) {
@@ -21,13 +23,59 @@
           right: 20px;
           z-index: 3000;
       }
+      
+      /* Footer styles */
+      footer {
+          background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+          color: white;
+          padding: 20px 0;
+          margin-top: 40px;
+          border-top: 3px solid #0d6efd;
+      }
+      
+      .footer-content {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+      }
+      
+      .developer-info {
+          font-size: 14px;
+      }
+      
+      .version-info {
+          background-color: #0d6efd;
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-weight: bold;
+      }
+      
+      .contact-info a {
+          color: #20c997;
+          text-decoration: none;
+          transition: color 0.3s;
+      }
+      
+      .contact-info a:hover {
+          color: #0dcaf0;
+          text-decoration: underline;
+      }
+      
+      @media (max-width: 768px) {
+          .footer-content {
+              flex-direction: column;
+              text-align: center;
+              gap: 10px;
+          }
+      }
   </style>
 </head>
 <body>
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark" data-bs-theme="dark">
     <div class="container-fluid">
-      <a class="navbar-brand" href="{% url 'index' %}">Inicio</a>
+      <a class="navbar-brand" href="{% url 'mi_app:index' %}">Inicio</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
               data-bs-target="#navbarSupportedContent"
               aria-controls="navbarSupportedContent" aria-expanded="false" 
@@ -44,11 +92,11 @@
               Proveedor
             </a>
             <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-              <li><a class="dropdown-item" href="{% url 'MovimientoProveedor' %}">Agregar movimiento</a></li>
-              <li><a class="dropdown-item" href="{% url 'agregar_persona' %}">Agregar Persona</a></li>
-              <li><a class="dropdown-item" href="{% url 'resumen' %}">Ver Resumen</a></li>
-              <li><a class="dropdown-item" href="{% url 'movimientos' %}">Ver Movimientos</a></li>
-              <li><a class="dropdown-item" href="{% url 'dashboardProveedor' %}">Dashboard</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:movimiento_proveedor_agregar' %}">Agregar movimiento</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:proveedor_persona_agregar' %}">Agregar Persona</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:proveedores_resumen' %}">Ver Resumen</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:proveedores_movimientos' %}">Ver Movimientos</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:proveedores_dashboard' %}">Dashboard</a></li>
             </ul>
           </li>
           <!-- Clientes -->
@@ -58,17 +106,30 @@
               Clientes
             </a>
             <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLinkCliente">
-              <li><a class="dropdown-item" href="{% url 'MovimientoCliente' %}">Agregar movimiento</a></li>
-              <li><a class="dropdown-item" href="{% url 'agregar_persona_Cliente' %}">Agregar Persona</a></li>
-              <li><a class="dropdown-item" href="{% url 'resumenCliente' %}">Ver Resumen</a></li>
-              <li><a class="dropdown-item" href="{% url 'movimientosCliente' %}">Ver Movimientos</a></li>
-              <li><a class="dropdown-item" href="{% url 'dashboardCliente' %}">Dashboard</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:movimiento_cliente_agregar' %}">Agregar movimiento</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:cliente_persona_agregar' %}">Agregar Persona</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:clientes_resumen' %}">Ver Resumen</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:clientes_movimientos' %}">Ver Movimientos</a></li>
+              <li><a class="dropdown-item" href="{% url 'mi_app:clientes_dashboard' %}">Dashboard</a></li>
+            </ul>
+          </li>
+          <!-- Gastos -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLinkGasto" role="button" 
+              data-bs-toggle="dropdown" aria-expanded="false">
+                Gastos
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLinkGasto">
+                <li><a class="dropdown-item" href="{% url 'mi_app:gasto_agregar' %}">Agregar Gasto</a></li>
+                <li><a class="dropdown-item" href="{% url 'mi_app:gastos_lista' %}">Ver Gastos</a></li>
+                <li><a class="dropdown-item" href="{% url 'mi_app:gastos_resumen' %}">Ver Resumen</a></li>
+                <li><a class="dropdown-item" href="{% url 'mi_app:gastos_dashboard' %}">Dashboard</a></li>
             </ul>
           </li>
         </ul>
         
         <!-- Buscador -->
-        <form class="d-flex" role="search" method="GET" action="{% url 'resumen' %}">
+        <form class="d-flex" role="search" method="GET" action="{% url 'mi_app:proveedores_resumen' %}">
           <input class="form-control me-2" type="search" name="proveedor" 
                  placeholder="Buscar proveedor" aria-label="Buscar proveedor" 
                  value="{{ proveedor_filtrado|default:'' }}">
@@ -106,6 +167,23 @@
   <div class="container mt-4">
     {% block content %}{% endblock %}
   </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="developer-info">
+          <i class="fas fa-code"></i> Desarrollado por <strong>Abimelec</strong>
+        </div>
+        <div class="license-info">
+          <span class="version-info"><i class="fas fa-certificate"></i> Licencia 2025 - v1.5</span>
+        </div>
+        <div class="contact-info">
+          <i class="fas fa-phone"></i> Contacto: <a href="tel:+573112577709">3112577709</a>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

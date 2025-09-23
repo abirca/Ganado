@@ -114,3 +114,23 @@ class ProveedorForm(forms.Form):
         max_length=100,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del proveedor'})
     )
+
+class GastoForm(forms.Form):
+    fecha = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    categoria = forms.ChoiceField(
+        choices=[ ('Parqueadero', 'Parqueadero'),
+        ('Flete', 'Flete'),
+        ('Varios', 'Varios')],
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    placa = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    conductor = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    precio = forms.DecimalField(
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
