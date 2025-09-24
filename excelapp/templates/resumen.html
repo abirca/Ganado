@@ -2,9 +2,37 @@
 {% load humanize %}
 {% block content %}
 
-<div class="card shadow border my-4 p-4" style="max-width: 900px; margin: auto;">
+<div class="card shadow border my-4 p-4" style="max-width: 1200px; margin: auto;">
   <h3 class="card-title mb-4 text-center">Resumen de Proveedores</h3>
 
+  <!-- Información de filtros aplicados -->
+  {% if proveedor_filtrado %}
+  <div class="alert alert-info mb-3">
+    <strong>Filtros aplicados:</strong>
+    Proveedor: {{ proveedor_filtrado }}
+  </div>
+  {% endif %}
+
+  <!-- Filtro de proveedor -->
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <form method="get" class="d-flex">
+        <select name="proveedor" class="form-select me-2">
+          <option value="">Todos los proveedores</option>
+          {% for prov in proveedores %}
+            <option value="{{ prov }}" {% if prov == proveedor_filtrado %}selected{% endif %}>{{ prov }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        {% if proveedor_filtrado %}
+          <a href="{% url 'mi_app:proveedores_resumen' %}" class="btn btn-secondary ms-2">Limpiar</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+   <!-- Detalle de movimientos -->
+   <h5 class="mt-5">Detalle de Movimientos Activos</h5>
   <div class="table-responsive">
     <table class="table table-bordered table-striped align-middle">
       <thead class="table-dark">
@@ -22,19 +50,148 @@
             <td>{{ row.1 }}</td>
             <td>${{ row.2|floatformat:0|intcomma }}</td>
             <td>${{ row.3|floatformat:0|intcomma }}</td>
-            <td class="{% if row.4 <= 0 %}text-success{% else %}text-danger{% endif %}"><strong>
-              ${{ row.4|floatformat:0|intcomma }}
-              </strong>
+            <td class="{% if row.4 <= 0 %}text-success{% else %}text-danger{% endif %}">
+              <strong>${{ row.4|floatformat:0|intcomma }}</strong>
             </td>
             <td>
-              <a href="{% url 'mi_app:proveedor_persona_editar' row.0 %}" class="btn btn-sm btn-warning">Editar</a>
+              {% if row.0 %}
+                <a href="{% url 'mi_app:proveedor_persona_editar' row.0 %}" class="btn btn-sm btn-warning">Editar</a>
+              {% else %}
+                <span class="text-muted">Sin ID</span>
+              {% endif %}
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="4" class="text-center">Sin registros aún</td></tr>
+          <tr>
+            <td colspan="5" class="text-center">No se encontraron registros en el resumen</td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <!-- Paginación del resumen consolidado -->
+  {% if resumen.has_other_pages %}
+  <div class="card mb-4 shadow-sm">
+    <div class="table-responsive">
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+          {% if resumen.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page_resumen={{ resumen.previous_page_number }}{% if all_params %}&{{ all_params }}{% endif %}{% if resumen_movimiento.number > 1 %}&page_movimientos={{ resumen_movimiento.number }}{% endif %}" aria-label="Anterior">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+          {% endif %}
+
+          {% for num in resumen.paginator.page_range %}
+            {% if resumen.number == num %}
+              <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+              <li class="page-item">
+                <a class="page-link" href="?page_resumen={{ num }}{% if all_params %}&{{ all_params }}{% endif %}{% if resumen_movimiento.number > 1 %}&page_movimientos={{ resumen_movimiento.number }}{% endif %}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if resumen.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page_resumen={{ resumen.next_page_number }}{% if all_params %}&{{ all_params }}{% endif %}{% if resumen_movimiento.number > 1 %}&page_movimientos={{ resumen_movimiento.number }}{% endif %}" aria-label="Siguiente">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Información del resumen -->
+  <div class="text-center text-muted mb-4">
+    Mostrando {{ resumen.start_index }} - {{ resumen.end_index }} de {{ resumen.paginator.count }} proveedores en el resumen
+  </div>
+
+
+  <!-- Resumen consolidado -->
+  <h5 class="mt-4">Resumen Consolidado por Proveedor</h5>
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Proveedor</th>
+          <th>Facturas</th>
+          <th>Abonos</th>
+          <th>Saldo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for movimiento in resumen_movimiento %}
+          <tr>
+            <td>{{ movimiento.proveedor }}</td>
+            <td>${{ movimiento.facturas|floatformat:0|intcomma }}</td>
+            <td>${{ movimiento.abonos|floatformat:0|intcomma }}</td>
+            <td class="{% if movimiento.saldo <= 0 %}text-success{% else %}text-danger{% endif %}">
+              <strong>${{ movimiento.saldo|floatformat:0|intcomma }}</strong>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="text-center">No se encontraron movimientos</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación del detalle de consolidado -->
+  {% if resumen_movimiento.has_other_pages %}
+  <div class="card mb-4 shadow-sm">
+    <div class="table-responsive">
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+          {% if resumen_movimiento.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page_movimientos={{ resumen_movimiento.previous_page_number }}{% if all_params %}&{{ all_params }}{% endif %}{% if resumen.number > 1 %}&page_resumen={{ resumen.number }}{% endif %}" aria-label="Anterior">
+                <span aria-hidden="true">&laquo;</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+          {% endif %}
+
+          {% for num in resumen_movimiento.paginator.page_range %}
+            {% if resumen_movimiento.number == num %}
+              <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+              <li class="page-item">
+                <a class="page-link" href="?page_movimientos={{ num }}{% if all_params %}&{{ all_params }}{% endif %}{% if resumen.number > 1 %}&page_resumen={{ resumen.number }}{% endif %}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+
+          {% if resumen_movimiento.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page_movimientos={{ resumen_movimiento.next_page_number }}{% if all_params %}&{{ all_params }}{% endif %}{% if resumen.number > 1 %}&page_resumen={{ resumen.number }}{% endif %}" aria-label="Siguiente">
+                <span aria-hidden="true">&raquo;</span>
+              </a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Información de movimientos -->
+  <div class="mt-3 text-center text-muted">
+    Mostrando {{ resumen_movimiento.start_index }} - {{ resumen_movimiento.end_index }} de {{ resumen_movimiento.paginator.count }} movimientos
   </div>
 </div>
 

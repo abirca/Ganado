@@ -36,6 +36,17 @@
     </div>
 </div>
 
+<!-- Información de filtros aplicados -->
+{% if categoria_filtro or placa_filtro or fecha_filtro %}
+<div class="alert alert-info mb-3">
+    <strong>Filtros aplicados:</strong>
+    {% if categoria_filtro %}Categoría: {{ categoria_filtro }}{% endif %}
+    {% if placa_filtro %} | Placa: {{ placa_filtro }}{% endif %}
+    {% if fecha_filtro %} | Fecha: {{ fecha_filtro }}{% endif %}
+</div>
+{% endif %}
+
+
 <!-- Tabla de gastos -->
 <div class="card mb-4 shadow-sm">
     <div class="card-body">

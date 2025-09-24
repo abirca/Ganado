@@ -987,13 +987,100 @@ def resumen_view(request, entity_type):
     """Vista genérica para resumen de proveedores o clientes"""
     config = ENTITY_CONFIG[entity_type]
     
-    proveedor_filtrado = request.GET.get('proveedor', None)
+    proveedor_filtrado = request.GET.get('proveedor', '')
+    
+    # Obtener lista de proveedores para el filtro
+    datos_completos = obtener_resumen_filtrado(entity_type, '')
+    proveedores = sorted(set([row[1] for row in datos_completos if len(row) > 1]))
+    
+    # Obtener los datos filtrados
     datos = obtener_resumen_filtrado(entity_type, proveedor_filtrado)
+    datos_movimiento = resumen_movimiento_view(entity_type, proveedor_filtrado)
+    
+    # Construir parámetros para mantener filtros en paginación
+    all_params = ""
+    if proveedor_filtrado:
+        all_params += f"proveedor={proveedor_filtrado}"
+    
+    # Paginar el resumen consolidado (datos)
+    page_resumen = request.GET.get('page_resumen', 1)
+    paginator_resumen = Paginator(datos, 10)
+    try:
+        resumen_paginado = paginator_resumen.page(page_resumen)
+    except PageNotAnInteger:
+        resumen_paginado = paginator_resumen.page(1)
+    except EmptyPage:
+        resumen_paginado = paginator_resumen.page(paginator_resumen.num_pages)
+    
+    # Paginar el detalle de movimientos (datos_movimiento)
+    page_movimientos = request.GET.get('page_movimientos', 1)
+    paginator_movimientos = Paginator(datos_movimiento, 10)
+    try:
+        movimientos_paginados = paginator_movimientos.page(page_movimientos)
+    except PageNotAnInteger:
+        movimientos_paginados = paginator_movimientos.page(1)
+    except EmptyPage:
+        movimientos_paginados = paginator_movimientos.page(paginator_movimientos.num_pages)
     
     return render(request, config['resumen_template'], {
-        'resumen': datos,
+        'resumen': resumen_paginado,
+        'resumen_movimiento': movimientos_paginados,
         'proveedor_filtrado': proveedor_filtrado,
+        'proveedores': proveedores,
+        'all_params': all_params,
     })
+
+def resumen_movimiento_view(entity_type, filtrar_proveedor):
+    """Recalcula el resumen considerando solo facturas y abonos"""
+    config = ENTITY_CONFIG[entity_type]
+
+    movimientos = [list(row) for row in cargar_datos_excel(config['sheet_movimientos'])]
+
+    # Filtrar solo los movimientos 
+    movimientos = [mov for mov in movimientos if len(mov) >= 8]
+
+    resumen_dict = {}
+
+    for mov in movimientos:
+        _, fecha, proveedor, detalle, obs, total, id_factura, estado = mov
+
+        if proveedor not in resumen_dict:
+            resumen_dict[proveedor] = {
+                'facturas': Decimal('0'),
+                'abonos': Decimal('0'),
+                'saldo': Decimal('0')
+            }
+
+        if detalle.lower() == 'factura':
+            match = re.search(r":\s*([\d.,]+)", str(obs))
+            if match:
+                total_factura = Decimal(match.group(1).replace(",", "."))
+                resumen_dict[proveedor]['facturas'] += total_factura
+            else:
+                resumen_dict[proveedor]['facturas'] += Decimal(str(total))            
+        elif detalle.lower() == 'abono':
+            resumen_dict[proveedor]['abonos'] += Decimal(str(total))
+
+        # Calcular saldo actual
+        resumen_dict[proveedor]['saldo'] = resumen_dict[proveedor]['facturas'] - resumen_dict[proveedor]['abonos']
+
+    # Convertir el diccionario a una lista ordenada
+    resumen = []
+    for proveedor, datos in resumen_dict.items():
+        resumen.append({
+            'proveedor': proveedor,
+            'facturas': float(datos['facturas']),
+            'abonos': float(datos['abonos']),
+            'saldo': float(datos['saldo'])
+        })
+
+    resumen.sort(key=lambda x: x['proveedor'])
+    
+    # Filtrar por el proveedor específico si se proporciona
+    if filtrar_proveedor:
+        resumen = [r for r in resumen if r['proveedor'] == filtrar_proveedor]
+
+    return resumen
 
 def movimientos_list_view(request, entity_type):
     """Vista genérica para listar movimientos de proveedores o clientes con filtros mejorados"""

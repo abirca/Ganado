@@ -41,6 +41,16 @@
     </div>
 </div>
 
+<!-- Información de filtros aplicados -->
+{% if categoria_filtro or fecha_inicio or fecha_fin %}
+<div class="alert alert-info mb-3">
+    <strong>Filtros aplicados:</strong>
+    {% if categoria_filtro %}Categoría: {{ categoria_filtro }}{% endif %}
+    {% if fecha_inicio %} | Fecha inicio: {{ fecha_inicio_formateada|default:fecha_inicio }}{% endif %}
+    {% if fecha_fin %} | Fecha fin: {{ fecha_fin_formateada|default:fecha_fin }}{% endif %}
+</div>
+{% endif %}
+
 <!-- Resumen por Categoría -->
 <div class="card mb-4 shadow-sm">
     <div class="card-header">

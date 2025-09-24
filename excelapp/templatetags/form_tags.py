@@ -23,3 +23,15 @@ def map_first(list_of_tuples):
 @register.filter
 def map_second(list_of_tuples):
     return [item[1] for item in list_of_tuples]
+    
+@register.simple_tag
+def url_params(proveedor_filtrado, page_resumen, page_movimientos):
+    params = []
+    if proveedor_filtrado:
+        params.append(f"proveedor={proveedor_filtrado}")
+    if page_resumen:
+        params.append(f"page_resumen={page_resumen}")
+    if page_movimientos:
+        params.append(f"page_movimientos={page_movimientos}")
+    
+    return "?" + "&".join(params) if params else ""
