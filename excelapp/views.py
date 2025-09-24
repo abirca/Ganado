@@ -282,6 +282,70 @@ def recalcular_resumen(entity_type):
 
     return True
 
+def recalcular_movimientos_factura(entity_type, id_inicio):
+    """
+    Si id_inicio corresponde a una factura: arranca desde esa factura.
+    Si corresponde a un abono: busca la factura asociada (IdFactura) y arranca desde allí.
+    Recalcula las siguientes facturas del mismo proveedor.
+    """
+    config = ENTITY_CONFIG[entity_type]
+
+    # --- 1. Cargar movimientos ---
+    movimientos = [list(row) for row in cargar_datos_excel(config['sheet_movimientos'])]
+
+    # --- 2. Buscar fila inicial ---
+    fila_inicio = None
+    for i, row in enumerate(movimientos):
+        if int(row[0]) == id_inicio:
+            fila_inicio = i
+            break
+
+    if fila_inicio is None:
+        raise ValueError(f"No existe Id={id_inicio} en movimientos")
+
+    detalle = str(movimientos[fila_inicio][3]).lower()
+    id_factura_actual = movimientos[fila_inicio][6]  # columna IdFactura
+    proveedor = movimientos[fila_inicio][2]
+
+    # --- 4. Config inicial ---
+    saldo = Decimal(str(movimientos[fila_inicio][5]))
+
+    # --- 5. Recorrer hacia abajo ---
+    for j in range(fila_inicio + 1, len(movimientos)):
+        if movimientos[j][2] != proveedor:  # cambia proveedor → detener
+            break
+
+        detalle = str(movimientos[j][3]).lower()
+
+        if "abono" in detalle:
+            saldo -= Decimal(str(movimientos[j][5]))
+
+        elif "factura" in detalle:
+            match = re.search(r":\s*([\d.,]+)", str(movimientos[j][4]))
+            if match:
+                total_factura = Decimal(match.group(1).replace(",", "."))
+            else:
+                total_factura = Decimal(movimientos[j][5])
+            saldo_anterior = saldo
+            saldo = saldo_anterior + total_factura  # actualizar saldo acumulado
+            # reconstruir observaciones
+            match = re.search(r"^(.*?)\s*-", str(movimientos[j][4]))
+            if match:
+                obs = match.group(1).strip()
+            else:
+                obs = "Factura"
+
+            total_mensaje = f"{obs} - la factura se realizo por : {int(total_factura)} "
+            obs = f"{total_mensaje} + saldo anterior {int(saldo_anterior)} = total {int(saldo)}"
+
+            # sobrescribir fila
+            movimientos[j][4] = obs
+            movimientos[j][5] = int(saldo)
+
+    # --- 6. Guardar ---
+    encabezados = ['Id', 'Fecha', 'Proveedor', 'Detalle', 'Obs', 'Total', 'IdFactura', 'Estado']
+    guardar_en_excel(config['sheet_movimientos'], movimientos, encabezados, modo='overwrite')
+
 def calcular_saldo_factura(id_factura, movimientos_data):
     """Calcular el saldo pendiente de una factura específica"""
     saldo = 0
@@ -290,11 +354,8 @@ def calcular_saldo_factura(id_factura, movimientos_data):
         if len(movimiento) > 6 and movimiento[6] == id_factura:
             if 'factura' in movimiento[3].lower():
                 saldo += float(movimiento[5])
-                print=(f"Saldo inicial de la factura {id_factura}: {saldo}")
             elif 'abono' in movimiento[3].lower():
                 saldo -= float(movimiento[5])
-                print =(f"Abono aplicado a la factura {id_factura}: {movimiento[5]}, saldo restante: {saldo}")
-
     return saldo  # No permitir saldos negativos
 
 def actualizar_estado_facturas(proveedor, id_factura, sheet_name):
@@ -1005,7 +1066,8 @@ def movimientos_list_view(request, entity_type):
         })
     
     # Ordenar movimientos por fecha (más reciente primero)
-    movimientos.sort(key=lambda x: x['fecha'] if x['fecha'] else datetime.min.date(), reverse=True)
+    #movimientos.sort(key=lambda x: x['fecha'] if x['fecha'] else datetime.min.date(), reverse=True)
+    movimientos.sort(key=lambda x: (x.get('id_factura'), x.get('fecha')), reverse=True)
     
     # Paginación
     paginator = Paginator(movimientos, 10)
@@ -1253,7 +1315,7 @@ def guardar_movimiento_view(request, entity_type):
                     movimientos_data = actualizar_estado_facturas(proveedor, id_anterior, config['sheet_movimientos'])
 
                 if saldo_anterior != 0:
-                    total_mensaje = f"Total {obs} : {int(total)}"
+                    total_mensaje = f"{obs} - la factura se realizo por : {int(total)} "
                     total +=  Decimal(str(saldo_anterior))
                     obs = f"{total_mensaje} + saldo anterior {int(saldo_anterior)} = total {int(total)}"
                     if total < 0:
@@ -1349,25 +1411,65 @@ def editar_movimiento_view(request, entity_type, index):
         if form.is_valid():
             data = form.cleaned_data
             
+            
+            obs = ''
             # Actualizar el movimiento en la lista
             for i, row in enumerate(movimientos_data):
                 if row and len(row) > 0 and row[0] == index:
-                    movimientos_data[i] = [
-                        index,
-                        normalizar_fecha(data['fecha']),
-                        data['proveedor'],
-                        data['detalle'],
-                        data['obs'],
-                        float(data['total']),
-                        mov['idfactura'],  # Preserve the original 'IdFactura'
-                        mov['estado'] 
-                    ]
-                    break
+                    if data['detalle'].lower() == 'factura':
+                        proveedor = data['proveedor']
+
+                        # Buscar facturas anteriores del mismo proveedor
+                        facturas_previas = [
+                            r for r in movimientos_data[:i]
+                            if r[2] == proveedor and str(r[3]).lower() == 'factura'
+                        ]
+
+                        es_primera_factura = len(facturas_previas) == 0
+
+                        if not es_primera_factura:
+                            match = re.search(r"saldo anterior\s+(-?\d+)", row[4], re.IGNORECASE)
+                            if match:
+                                saldo_anterior = int(match.group(1))
+                            if saldo_anterior != 0:
+                                total = int(data['total'])
+                                total_mensaje = f"{data['obs']} - la factura se realizo por : {int(data['total'])} "
+                                total +=  Decimal(str(saldo_anterior))
+                                obs = f"{total_mensaje} + saldo anterior {int(saldo_anterior)} = total {int(total)}"
+                        else:
+                            total = int(data['total'])
+                            obs = data['obs']
+
+                        movimientos_data[i] = [
+                            index,
+                            normalizar_fecha(data['fecha']),
+                            data['proveedor'],
+                            data['detalle'],
+                            obs,
+                            total,
+                            mov['idfactura'],  # Preserve the original 'IdFactura'
+                            mov['estado'] 
+                        ]
+                        break
+                    else:
+                        movimientos_data[i] = [
+                            index,
+                            normalizar_fecha(data['fecha']),
+                            data['proveedor'],
+                            data['detalle'],
+                            data['obs'],
+                            float(data['total']),
+                            mov['idfactura'],  # Preserve the original 'IdFactura'
+                            mov['estado'] 
+                        ]
+                        break
             
             # Guardar en Excel
             encabezados = ['Id', 'Fecha', 'Proveedor', 'Detalle', 'Obs', 'Total', 'IdFactura', 'Estado']
             if guardar_en_excel(config['sheet_movimientos'], movimientos_data, encabezados, modo='overwrite'):
-            
+                
+                # Actualizar el movimiento
+                recalcular_movimientos_factura(entity_type, index)
                 # Recalcular el resumen
                 recalcular_resumen(entity_type)
                 # Mensaje de éxito
@@ -1379,15 +1481,24 @@ def editar_movimiento_view(request, entity_type, index):
                 messages.error(request, 'Error al guardar el movimiento. Inténtelo de nuevo.')
     
     else:
+        obs = ''
         # Convertir fecha a formato string para el formulario
         if isinstance(mov['fecha'], datetime):
             fecha_str = mov['fecha'].strftime('%Y-%m-%d')
+        try:
+            match = re.search(r"^(.*?)\s*-", mov['obs'])
+            if match:
+                obs = match.group(1).strip()
+            else:
+                obs = mov['obs']
+        except:
+            obs = mov['obs']
             
         initial_data = {
             'fecha': fecha_str,
             'proveedor': mov['proveedor'],
             'detalle': mov['detalle'],
-            'obs': mov['obs'],
+            'obs': obs,
             'total': mov['total'],
         }
         form = config['form'](initial=initial_data)
@@ -1669,9 +1780,8 @@ def descargar_excel_entidad(request, entity_type):
             # Sumar a totales - CORREGIDO: Usar siempre el mismo valor para consistencia
             if 'factura' in str(mov['detalle']).lower():
                 obs = str(mov.get('obs', '')).lower()
-                match = re.search(r"(?:total\s+factura|factura)\s*:\s*([\d.,]+)", obs, re.IGNORECASE)
+                match = re.search(r":\s*([\d.,]+)", obs)
                 if match:
-                    # Convert the extracted string to float, handling commas as decimals
                     total_valor = float(match.group(1).replace(",", "."))
 
                 total_facturas += total_valor

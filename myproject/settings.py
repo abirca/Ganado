@@ -70,5 +70,4 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-RUTA_EXCEL = os.path.join(BASE_DIR, 'Financiero.xlsx')
-RUTA_EXCEL_SEGUNDO = os.path.join(BASE_DIR, 'FinancieroBackup.xlsx')
+RUTA_EXCEL = os.path.join(BASE_DIR, 'FinancieroG.xlsx')

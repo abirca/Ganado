@@ -98,9 +98,7 @@
               {% endif %}
             </td>
             <td>
-              {% if mov.estado == 'Activa' and mov.obs == 'Abono' %}
               <a href="{% url 'mi_app:movimiento_cliente_editar' mov.id %}" class="btn btn-sm btn-warning">Editar</a>
-              {% endif %}
             </td>
           </tr>
         {% empty %}
